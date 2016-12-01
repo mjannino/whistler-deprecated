@@ -1,52 +1,48 @@
-//requires
-//const ejs = require('ejs');
-const express = require('express');
-const app = express();
-const http = require('http').Server(app);
-//expose and bind socket.io to the http server
-const io = require('socket.io')(http);
-//bodyparser to get post data
-const bodyParser = require('body-parser');
-app.use(bodyParser.json() );
-app.use(bodyParser.urlencoded ({
-    extended: true
-}));
-app.set('view engine', 'ejs');
+var express = require('express')
+  , app = express()
+  , http = require('http')
+  , server = http.createServer(app)
+  , io = require('socket.io').listen(server);
 
-//listening on port 3000
-http.listen(3000, function(){
-    console.log("listening on 3000");
-});
+server.listen(8080);
 
-
-
-
-//list of usernames of users currently in the room
-var usernames = {};
-var username;
-
-//routing
+// routing
 app.get('/', function (req, res) {
-    res.render('chatroom', {username:username});
+  res.sendFile(__dirname + '/index.html');
 });
 
-// app.get('/chatroom', function (req, res) {
-//     res.sendFile(__dirname + "/chatroom.html");
-//
-// });
-//get the username
-app.post('/login', function(req, res) {
-    username = req.body.name;
+// usernames which are currently connected to the chat
+var usernames = {};
+
+io.sockets.on('connection', function (socket) {
+
+  // when the client emits 'sendchat', this listens and executes
+  socket.on('sendchat', function (data) {
+    // we tell the client to execute 'updatechat' with 2 parameters
+    io.sockets.emit('updatechat', socket.username, data);
+  });
+
+  // when the client emits 'adduser', this listens and executes
+  socket.on('adduser', function(username){
+    // we store the username in the socket session for this client
+    socket.username = username;
+    // add the client's username to the global list
     usernames[username] = username;
-    res.render('chatroom',{username:username});
-});
+    // echo to client they've connected
+    socket.emit('updatechat', 'SERVER', 'you have connected');
+    // echo globally (all clients) that a person has connected
+    socket.broadcast.emit('updatechat', 'SERVER', username + ' has connected');
+    // update the list of users in chat, client-side
+    io.sockets.emit('updateusers', usernames);
+  });
 
-//socket stuff
-io.on('connection', function(socket){
-        console.log("user connected ");
-        socket.emit('updateUsers', usernames);
-
-        socket.on('disconnect', function(){
-        console.log("user disconnected");
-    });
+  // when the user disconnects.. perform this
+  socket.on('disconnect', function(){
+    // remove the username from global usernames list
+    delete usernames[socket.username];
+    // update list of users in chat, client-side
+    io.sockets.emit('updateusers', usernames);
+    // echo globally that this client has left
+    socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
+  });
 });
