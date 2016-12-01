@@ -1,0 +1,41 @@
+<!Doctype html>
+<html>
+<head>
+<title>ghostspeak</title>
+</head>
+<body>
+    <h1>chat</h1>
+    <h2>Usernames:</h2>
+    <div id="userDisplay">
+    </div>
+    <form action="/login" method="post" id="loginForm">
+        <input name="name" id="name" type="text" />
+        <input name="submit" id="submit" type="submit" />
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+    <script>
+        //connect the client to the server
+        var socket = io();
+        var username = '<%= username %>';
+        console.log(username);
+
+        socket.on('connect', function(){
+            socket.emit('newUser', username);
+
+            socket.on('updateUsers', function(users){
+                console.log("updating list (client)");
+                //empty the display
+                $('#userDisplay').empty();
+                //for each member, display the name
+                $.each(users, function(key, value) {
+                    $('#userDisplay').append('<p>' + key + '</p>');
+                });
+            });
+        });
+        //update the list of users
+
+
+    </script>
+</body>
+</html>
