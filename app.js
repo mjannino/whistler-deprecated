@@ -4,9 +4,9 @@ var express = require('express')
   , server = http.createServer(app)
   , io = require('socket.io').listen(server);
 
-  console.log(io.sockets.adapter.rooms);
-
 server.listen(8080);
+
+app.use("/Scripts", express.static(__dirname + '/Scripts'));
 
 // routing
 app.get('/', function (req, res) {
@@ -15,13 +15,14 @@ app.get('/', function (req, res) {
 
 // usernames which are currently connected to the chat
 var usernames = {};
+//the room they are in is tied to thier username
+var rooms = {};
 
 io.sockets.on('connection', function (socket) {
-    console.log(io.sockets.adapter.rooms);
   // when the client emits 'sendchat', this listens and executes
   socket.on('sendchat', function (data) {
     // we tell the client to execute 'updatechat' with 2 parameters
-    io.sockets.emit('updatechat', socket.username, data);
+    io.to(rooms[socket.username]).emit('updatechat', socket.username, data);
   });
 
   // when the client emits 'adduser', this listens and executes
@@ -31,15 +32,18 @@ io.sockets.on('connection', function (socket) {
     // add the client's username to the global list
     usernames[username] = username;
     // echo to client they've connected
-    socket.emit('updatechat', 'SERVER', 'you have connected');
+    socket.to(rooms[socket.username]).emit('updatechat', 'SERVER', 'you have connected');
     // echo globally (all clients) that a person has connected
-    socket.broadcast.emit('updatechat', 'SERVER', username + ' has connected');
+    socket.to(rooms[socket.username]).broadcast.emit('updatechat', 'SERVER', socket.username + ' has connected');
     // update the list of users in chat, client-side
     io.sockets.emit('updateusers', usernames);
   });
 
   socket.on('whatroom', function(room){
-     socket.join(room);
+      socket.join(room);
+      socket.leave(socket.id);
+      rooms[socket.username] = room;
+      console.log(io.sockets.adapter.rooms);
   });
 
   // when the user disconnects.. perform this
@@ -49,6 +53,6 @@ io.sockets.on('connection', function (socket) {
     // update list of users in chat, client-side
     io.sockets.emit('updateusers', usernames);
     // echo globally that this client has left
-    socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
+    socket.to(rooms[socket.username]).emit('updatechat', 'SERVER', socket.username + ' has disconnected');
   });
 });
