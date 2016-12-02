@@ -4,6 +4,8 @@ var express = require('express')
   , server = http.createServer(app)
   , io = require('socket.io').listen(server);
 
+  console.log(io.sockets.adapter.rooms);
+
 server.listen(8080);
 
 // routing
@@ -15,7 +17,7 @@ app.get('/', function (req, res) {
 var usernames = {};
 
 io.sockets.on('connection', function (socket) {
-
+    console.log(io.sockets.adapter.rooms);
   // when the client emits 'sendchat', this listens and executes
   socket.on('sendchat', function (data) {
     // we tell the client to execute 'updatechat' with 2 parameters
@@ -34,6 +36,10 @@ io.sockets.on('connection', function (socket) {
     socket.broadcast.emit('updatechat', 'SERVER', username + ' has connected');
     // update the list of users in chat, client-side
     io.sockets.emit('updateusers', usernames);
+  });
+
+  socket.on('whatroom', function(room){
+     socket.join(room);
   });
 
   // when the user disconnects.. perform this
