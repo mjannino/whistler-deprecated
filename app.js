@@ -1,58 +1,70 @@
+//setting up express and socketio
 var express = require('express')
   , app = express()
   , http = require('http')
   , server = http.createServer(app)
   , io = require('socket.io').listen(server);
+//body parser because express doesnt support middleware now for whatever reason
+const bodyParser = require('body-parser');
+app.use(bodyParser.urlencoded({ extended: true }));
 
-server.listen(8080);
+/////////////////////////////////////////////////////////////////////////////////
+//Globals////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+//prototype for a user
+function User(username, roomID) {
+    this.username = null,
+    this.roomID = null,
+    this.secret = null
+};
 
-app.use("/Scripts", express.static(__dirname + '/Scripts'));
+//prototype for a room
+function Room() {
+    this.userList = [],
+    this.roomID = null
+}
+//list of rooms
+roomList = [];
+////////////////////////////////////////////////////////////////////////////////
 
-// routing
-app.get('/', function (req, res) {
-  res.sendFile(__dirname + '/index.html');
+////////////////////////////////////////////////////////////////////////////////
+//routing etc///////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+app.get('/', function(req, res){
+    res.sendFile(__dirname + '/views/index.html')
 });
 
-// usernames which are currently connected to the chat
-var usernames = {};
-//the room they are in is tied to thier username
-var rooms = {};
+app.post('/Whistler', function(req, res){
+    //create a new user
+    currentUser = new User;
+    currentUser.username = req.body.username;
+    currentUser.roomID = req.body.roomID;
+    //check to see if that roomID already exists. if it does, place the user in that room
+    if(roomList[currentUser.roomID] === undefined)
+    {
+        //create the room and place the user in it
+        currentRoom = new Room;
+        currentRoom.userList.push(currentUser);
+        currentRoom.roomID = currentUser.roomID;
+        console.log(currentUser.roomID);
+        roomList[(currentUser.roomID)] = currentRoom;
+    }
+    else {
+        //else just push them to the userlist for that room
+        roomList[(currentUser.roomID)].userList.push(currentUser);
+    }
+    //console.log(currentUser);
+    console.log(roomList);
+    res.sendFile(__dirname + '/views/chatRoom.html');
+});
 
-io.sockets.on('connection', function (socket) {
-  // when the client emits 'sendchat', this listens and executes
-  socket.on('sendchat', function (data) {
-    // we tell the client to execute 'updatechat' with 2 parameters
-    io.to(rooms[socket.username]).emit('updatechat', socket.username, data);
-  });
+server.listen("3000");
+////////////////////////////////////////////////////////////////////////////////
+//socketio stuff////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-  // when the client emits 'adduser', this listens and executes
-  socket.on('adduser', function(username){
-    // we store the username in the socket session for this client
-    socket.username = username;
-    // add the client's username to the global list
-    usernames[username] = username;
-    // echo to client they've connected
-    socket.to(rooms[socket.username]).emit('updatechat', 'SERVER', 'you have connected');
-    // echo globally (all clients) that a person has connected
-    socket.to(rooms[socket.username]).broadcast.emit('updatechat', 'SERVER', socket.username + ' has connected');
-    // update the list of users in chat, client-side
-    io.sockets.emit('updateusers', usernames);
-  });
+//when a new socket connects...
+io.sockets.on('connection', function(socket){
 
-  socket.on('whatroom', function(room){
-      socket.join(room);
-      socket.leave(socket.id);
-      rooms[socket.username] = room;
-      console.log(io.sockets.adapter.rooms);
-  });
-
-  // when the user disconnects.. perform this
-  socket.on('disconnect', function(){
-    // remove the username from global usernames list
-    delete usernames[socket.username];
-    // update list of users in chat, client-side
-    io.sockets.emit('updateusers', usernames);
-    // echo globally that this client has left
-    socket.to(rooms[socket.username]).emit('updatechat', 'SERVER', socket.username + ' has disconnected');
-  });
+    console.log();
 });
