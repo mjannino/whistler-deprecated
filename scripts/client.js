@@ -9,6 +9,7 @@ socket.on('newUser', function(user, roomID) {
 
 });
 
+
 //when a new message is recieved from the server, display it with
 //the username that broacasted it
 socket.on('recieveMessage', function(msg, user) {
@@ -44,3 +45,19 @@ $('button#sendMessage').click(function() {
     $('input#textBar').val('');
     socket.emit('sendMessage', msg);
 })
+
+
+
+
+//
+//
+//
+//
+//TODO: put these in seperate files
+//      babel/webpack/gulp include
+//
+//TODO: CRYPTO utils
+//
+//
+
+var crypto = window.crypto;
