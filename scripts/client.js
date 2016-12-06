@@ -1,5 +1,5 @@
 //connect the client to the server
-var socket = io.connect('http://localhost:3000');
+var socket = io();
 
 
 //when a new user joins, display a welcome message
