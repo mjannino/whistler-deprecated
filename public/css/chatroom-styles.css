@@ -16,6 +16,7 @@ div#chatBox {
     margin-bottom: 5px;
     width: 614px;
     height: 900px;
+    overflow-y: scroll;
 }
 
 div#messagebar {

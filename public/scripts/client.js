@@ -9,11 +9,11 @@ socket.on('newUser', function(user, roomID) {
 
 });
 
-
 //when a new message is recieved from the server, display it with
 //the username that broacasted it
 socket.on('recieveMessage', function(msg, user) {
     $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
+    $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
 });
 
 //when a new user joins, update the list of users currently in the room
@@ -45,19 +45,3 @@ $('button#sendMessage').click(function() {
     $('input#textBar').val('');
     socket.emit('sendMessage', msg);
 })
-
-
-
-
-//
-//
-//
-//
-//TODO: put these in seperate files
-//      babel/webpack/gulp include
-//
-//TODO: CRYPTO utils
-//
-//
-
-var crypto = window.crypto;
