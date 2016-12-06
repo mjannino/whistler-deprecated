@@ -13,7 +13,9 @@ socket.on('newUser', function(user, roomID) {
 //the username that broacasted it
 socket.on('recieveMessage', function(msg, user) {
     $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
-    $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
+    $('div#chatBox').animate({
+        scrollTop: $('div#chatBox').height()
+    }, 1000);
 });
 
 //when a new user joins, update the list of users currently in the room
@@ -25,7 +27,7 @@ socket.on('updateUsers', function(list) {
     });
 });
 
-socket.on('userDisconnected', function(username){
+socket.on('userDisconnected', function(username) {
     $('div#chatBox').append('<p class="important">User ' + username + ' has disconnected </p>');
 });
 
@@ -39,9 +41,14 @@ $('button#join').click(function() {
 })
 
 //submit a message
+$("input#textBar").keyup(function(event){
+        if(event.keyCode == 13){
+            $("button#sendMessage").click();
+        }
+});
 $('button#sendMessage').click(function() {
     var msg = $('input#textBar').val();
     //clear the text box
     $('input#textBar').val('');
     socket.emit('sendMessage', msg);
-})
+});
