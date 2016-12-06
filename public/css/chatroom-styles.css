@@ -14,7 +14,6 @@ div#chatBox {
     border: black 1px solid;
     margin-left: 200px;
     margin-bottom: 5px;
-    width: 614px;
     height: 900px;
     overflow-y: scroll;
 }
