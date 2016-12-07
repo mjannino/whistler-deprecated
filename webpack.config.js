@@ -3,10 +3,10 @@ var webpack = require("webpack");
 
 module.exports = {
     entry: {
-        filename: './scripts/entry.js'
+        filename: './public/scripts/entry.js'
     },
     output: {
-        filename: 'scripts/bundle.js'
+        filename: 'public/scripts/bundle.js'
     },
     node: {
       fs: "empty",

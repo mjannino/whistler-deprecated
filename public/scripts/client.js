@@ -1,3 +1,4 @@
+
 //connect the client to the server
 var socket = io();
 
