@@ -35,6 +35,10 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/views/index.html')
 });
 
+app.get('/test*', (req, res)=>{
+  res.sendFile(__dirname + '/views/test.html');
+});
+
 server.listen(process.env.PORT || 5000);
 
 ////////////////////////////////////////////////////////////////////////////////
