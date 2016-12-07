@@ -3,7 +3,7 @@
 <head>
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/chatroom-styles.css"
+    <link rel="stylesheet" href="/public/css/chatroom-styles.css"
 </head>
 
 <body>
@@ -30,12 +30,12 @@
     <div id="userList">
         <!-- Userlist goes here -->
     </div>
-    <div class="pre-scrollable" id="chatBox">
+    <div id="chatBox">
         <!-- Chat messages Go here -->
     </div>
     <div id="messageBar" style="bottom:0;">
         <input id="textBar" type="text" />
-        <button id="sendMessage">Send Message</button>
+        <button id="sendMessage">Send</button>
     </div>
 
 
@@ -45,7 +45,7 @@
     <!-- Latest compiled JavaScript for bootstrap -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="scripts/client.js"></script>
+    <script src="/public/scripts/client.js"></script>
     <script>
         $(window).load(function() {
             $('#joinModal').modal('show');

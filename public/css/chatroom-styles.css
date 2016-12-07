@@ -1,0 +1,51 @@
+
+body {
+    font-size: 20px;
+    background-color: black;
+    color: white;
+}
+
+div#userList {
+    position: fixed;
+    width: 300px;
+    height: 200px;
+    display: block;
+}
+
+div#chatBox {
+    border: white 1px solid;
+    margin-left: 200px;
+    margin-bottom: 5px;
+    height: 900px;
+    overflow-y: scroll;
+}
+
+div#messagebar {
+    margin-left: 200px;
+}
+
+input#textBar {
+    width: 80%;
+    border: white 1px solid;
+    background-color: black;
+
+}
+
+button#sendMessage {
+    width: 10%;
+    background-color: black;
+}
+
+p.important {
+    font-weight: bold;
+}
+
+.modal-sm,
+.modal-content,
+.modal-header,
+.modal-title,
+#username,
+#roomID {
+    background: black;
+    color: white;
+}

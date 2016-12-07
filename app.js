@@ -5,8 +5,8 @@ var express = require('express'),
     server = http.createServer(app),
     io = require('socket.io').listen(server);
 
-app.use("/scripts", express.static(__dirname + '/scripts'));
-app.use("/css", express.static(__dirname + '/css'));
+app.use("/public/scripts", express.static(__dirname + '/public/scripts'));
+app.use("/public/css", express.static(__dirname + '/public/css'));
 /////////////////////////////////////////////////////////////////////////////////
 //Globals////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ users = {};
 //routing etc///////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 app.get('/', function(req, res) {
-    res.sendFile(__dirname + '/views/index.html')
+    res.sendFile(__dirname + '/public/views/index.html')
 });
 
 app.get('/test*', (req, res)=>{
@@ -49,7 +49,7 @@ io.sockets.on('connection', function(socket) {
 
     //listen for when a user joins a room
     socket.on('joinRoom', function(username, roomID) {
-        //!!!!!!! check to see if that username is already taken
+        //!!!!!!! check to see if that username is already taken !!!!!!!!!!!!!!!!!!!!!
         //add the user to the list for that room
         currentUser = addToList(username, roomID, socket);
         //join the specified room
@@ -63,14 +63,19 @@ io.sockets.on('connection', function(socket) {
 
     //when a message is sent, show it to the client
     socket.on('sendMessage', function(msg) {
-        io.in(users[socket.id].roomID).emit('recieveMessage', msg, socket.username);
+        if(!msg == ""){
+            io.in(users[socket.id].roomID).emit('recieveMessage', msg, socket.username);
+        }
+
     })
 
     socket.on('disconnect', function(){
         console.log("user disconnected, ID" + socket.id);
-        removeFromList(socket.username, users[socket.id].roomID);
-        io.in(users[socket.id].roomID).emit('userDisconnected', socket.username);
-        io.to(users[socket.id].roomID).emit('updateUsers', roomList[users[socket.id].roomID].userList);
+        if([socket.id].roomID != undefined) {
+            removeFromList(socket.username, users[socket.id].roomID);
+            io.in(users[socket.id].roomID).emit('userDisconnected', socket.username);
+            io.to(users[socket.id].roomID).emit('updateUsers', roomList[users[socket.id].roomID].userList);
+        }
     });
 
 });
