@@ -1,6 +1,21 @@
 import _ from 'lodash';
 import without from 'lodash.without';
 
+//USAGE:
+
+// cryptoSession.encodeMessage(message).then((socketData) => {
+//   message.val('');
+//   $('#send-message-btn').removeClass('active');
+//   // Add escaped message since message did not come from the server
+//   this._chat.addChatMessage({
+//     username: username,
+//     message: escape(cleanedMessage)
+//   });
+//   this._socket.emit('new message', socketData);
+// }).catch((err) => {
+//   console.log(err);
+// });
+
 //crypto class using the WebCrypto API
 //this class contains much logic gathered
 //from varius security and cryptography courses
