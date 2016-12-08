@@ -13,8 +13,8 @@ app.use("/public/css", express.static(__dirname + '/public/css'));
 //prototype for a user
 function User() {
     this.username = null,
-        this.roomID = null,
-        this.secret = null
+        this.secret = null,
+        this.roomID == null //current room the user is in
 };
 
 //prototype for a room
@@ -35,8 +35,8 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/public/views/index.html')
 });
 
-app.get('/test*', (req, res)=>{
-  res.sendFile(__dirname + '/views/test.html');
+app.get('/test*', (req, res) => {
+    res.sendFile(__dirname + '/views/test.html');
 });
 
 server.listen(process.env.PORT || 5000);
@@ -48,33 +48,45 @@ io.sockets.on('connection', function(socket) {
     console.log("user connected, ID: " + socket.id);
 
     //listen for when a user joins a room
-    socket.on('joinRoom', function(username, roomID) {
-        //!!!!!!! check to see if that username is already taken !!!!!!!!!!!!!!!!!!!!!
+    socket.on('joinRoom', function() {
+        console.log('hey');
+        //update the username to the crypto session?
+        //updateUsername(currentUser.username) then((currentUser) => {
+
+        //});
+
         //add the user to the list for that room
-        currentUser = addToList(username, roomID, socket);
+        var currentUser = addToList(socket, socket.id);
+        //check the connected users
+        //checkConnectedUsers(currentUser.username);
         //join the specified room
-        socket.join(roomID);
+        socket.join(currentUser.roomID);
         users[socket.id] = currentUser;
 
         //emit to the room that a new user has joined.
-        io.to(roomID).emit('newUser', currentUser.username, currentRoom.roomID);
-        io.to(roomID).emit('updateUsers', roomList[roomID].userList);
+        io.to(currentUser.roomID).emit('newUser', currentUser.username, currentRoom.roomID);
+        io.to(currentUser.roomID).emit('updateUsers', roomList[currentUser.roomID].userList);
+        console.log(roomList);
+        console.log(users);
     });
 
     //when a message is sent, show it to the client
     socket.on('sendMessage', function(msg) {
-        if(!msg == ""){
-            io.in(users[socket.id].roomID).emit('recieveMessage', msg, socket.username);
+        if (!msg == "") {
+            io.to(users[socket.id].roomID).emit('recieveMessage', msg, socket.username);
         }
 
     })
 
-    socket.on('disconnect', function(){
+    socket.on('disconnect', function() {
         console.log("user disconnected, ID" + socket.id);
-        if([socket.id].roomID != undefined) {
-            removeFromList(socket.username, users[socket.id].roomID);
+        if ([socket.id].username != undefined) {
+            //remove this user from the list
+            removeFromList(socket.username, users[socket.id]);
+            //remove user from the session
+            //removeUser(users[socket.id]);
             io.in(users[socket.id].roomID).emit('userDisconnected', socket.username);
-            io.to(users[socket.id].roomID).emit('updateUsers', roomList[users[socket.id].roomID].userList);
+            io.to(users[socket.id].roomID).emit('updateUsers', roomList[users[socket.id]].userList);
         }
     });
 
@@ -86,28 +98,29 @@ io.sockets.on('connection', function(socket) {
 
 
 //small function to add a user to a room and the room to the room list
-function addToList(username, roomID, socket) {
+function addToList(socket, roomID) {
     currentUser = new User;
-    currentUser.username = username;
-    //set the socket username
-    socket.username = username;
+    currentUser.username = socket.id.substring(0, 6);
     currentUser.roomID = roomID;
+    console.log(currentUser.username);
+    //set the socket username
+    socket.username = currentUser.username;
     //if the room does not already exist...
-    if (roomList[currentUser.roomID] === undefined) {
+    if (roomList[socket.id] === undefined) {
         //...create the room and place the user in it
         currentRoom = new Room;
-        currentRoom.userList.push(currentUser.username);
-        currentRoom.roomID = currentUser.roomID;
-        roomList[(currentUser.roomID)] = currentRoom;
+        currentRoom.userList.push(socket.username);
+        currentRoom.roomID = socket.id;
+        roomList[(socket.id)] = currentRoom;
     } else {
         //..else just push them to the userlist for that room
-        roomList[(currentUser.roomID)].userList.push(currentUser.username);
+        roomList[(currentUser.roomID)].userList.push(socket.username);
     }
     return currentUser;
 }
 
 //find the name of the user in the list of users for that room and remove them
-function removeFromList(username, roomID) {
-    var name = roomList[roomID].userList.indexOf(username);
-    roomList[roomID].userList.splice(name, 1);
+function removeFromList(username) {
+    var name = roomList[username].userList.indexOf(username);
+    roomList[username].userList.splice(name, 1);
 }

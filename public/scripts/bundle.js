@@ -52,9 +52,6 @@
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-	var body = document.querySelector('body');
-	body.textContent = 'Good point: ' + new _crypto2.default(1, 23);
-
 /***/ },
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
@@ -71,9 +68,28 @@
 
 	var _lodash2 = _interopRequireDefault(_lodash);
 
+	var _lodash3 = __webpack_require__(4);
+
+	var _lodash4 = _interopRequireDefault(_lodash3);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	//USAGE:
+
+	// cryptoSession.encodeMessage(message).then((socketData) => {
+	//   message.val('');
+	//   $('#send-message-btn').removeClass('active');
+	//   // Add escaped message since message did not come from the server
+	//   this._chat.addChatMessage({
+	//     username: username,
+	//     message: escape(cleanedMessage)
+	//   });
+	//   this._socket.emit('new message', socketData);
+	// }).catch((err) => {
+	//   console.log(err);
+	// });
 
 	//crypto class using the WebCrypto API
 	//this class contains much logic gathered
@@ -84,11 +100,11 @@
 	//TorchNote: https://github.com/spencerthayer/TorchNoteJS
 	//Spindle: https://wearespindle.com/articles/end-to-end-encryption-between-node-js-and-webcrypto
 
-	var Crypto = function () {
-	  function Crypto() {
-	    _classCallCheck(this, Crypto);
+	var CryptoSession = function () {
+	  function CryptoSession() {
+	    _classCallCheck(this, CryptoSession);
 
-	    this._myUserId = false;
+	    this._currentUserId = false;
 	    this._connected = false;
 	    this._users = {};
 	    this._keys = {};
@@ -110,24 +126,32 @@
 	    }
 	  }
 
-	  _createClass(Crypto, [{
-	    key: 'getUserById',
-	    value: function getUserById(id) {
-	      return this._users[id];
-	      //return _.findWhere(this._users, {id: id});
-	    }
-	  }, {
+	  _createClass(CryptoSession, [{
 	    key: 'addUser',
-	    value: function addUser(data) {
+	    value: function addUser(state) {
 	      var _this = this;
 
 	      var importKeysPromises = [];
-	      // Import all user keys if not already there
-	      _lodash2.default.each(data.users, function (user) {
+
+	      //Users exist in a 'state' object throughout the application
+	      //Server-side, they are just a collection of Users
+	      //Client-side and crypto class needs to keep track of more info
+	      //User keys, etc. Server doesn't need or want to know this information
+	      //When adding a user, it's important to figure out if t his is the first user
+	      //If it's the first user, we need to set up the state to keep track of more users
+	      //All of these users keep track of public keys
+
+	      _lodash2.default.each(state.users, function (user) {
+
+	        //if there is no user with this ID, we need to asynchronously
+	        //reach out to our webcrypto instance and add the primary key
+	        //then we need to add the user to the current user state
+
 	        if (!_this._users[id]) {
+
 	          var promise = new Promise(function (resolve, reject) {
 	            var currentUser = user;
-	            Promise.all([_this._cryptoUtil.importPrimaryKey(currentUser.publicKey, 'spki')]).then(function (keys) {
+	            Promise.all([_this.importPrimaryKey(currentUser.publicKey, 'spki')]).then(function (keys) {
 	              _this._users.push({
 	                id: currentUser.id,
 	                username: currentUser.username,
@@ -141,28 +165,71 @@
 	        }
 	      });
 
-	      if (!this._myUserId) {
-	        // Set my id if not already set
-	        var me = _lodash2.default.findWhere(data.users, { username: username });
-	        this._myUserId = me.id;
+	      //the obvious part, if there is no current user, this is a new session
+	      //so establish the user
+
+	      if (!this._currentUserId) {
+	        var me = _lodash2.default.find(data.users, { username: username });
+	        this._currentUserId = me.id;
 	      }
 
 	      return importKeysPromises;
 	    }
+
+	    //this part creates the user asyncrhonously; this needs to interface
+	    //with our socket events.
+	    //each user has keys they need associated with them--it is VERY important
+	    //that this crypto module handles this.
+
 	  }, {
-	    key: 'createUser',
-	    value: function createUser(resolve, reject, username) {
+	    key: 'updateUsername',
+	    value: function updateUsername(username) {
 	      var _this2 = this;
 
-	      Promise.all([this._cryptoUtil.createPrimaryKeys()]).then(function (data) {
-	        _this2._keys = {
-	          public: data[0].publicKey,
-	          private: data[0].privateKey
+	      var user = null;
+
+	      return new Promise(function (resolve, reject) {
+	        if (username) {
+	          user = _this2.getUserById(_this2._myUserId);
+	        }
+	        if (user) {
+
+	          var userExists = _this2.checkSessionUsernames(username);
+	          if (userExists) {
+
+	            if (userExists.id !== _this2._myUserId) {
+	              return reject(username + ' is being used by someone else in this chat session.');
+	            }
+	          }
+	          return resolve({
+	            username: username,
+	            publicKey: user.publicKey
+	          });
+	        }
+	        // User doesn't exist, create the user
+	        return _this2.createUserSession(resolve, reject, username);
+	      });
+	    }
+	  }, {
+	    key: 'createUserSession',
+	    value: function createUserSession(resolve, reject, username) {
+	      var _this3 = this;
+
+	      Promise.all([this.createPrimaryKeys() //webcrypto wrapper
+	      ]).then(function (keys) {
+	        //when primary keys are created, they need to be established and attached
+	        //to the current session
+	        _this3._keys = {
+	          public: keys[0].publicKey,
+	          private: keys[0].privateKey
 	        };
-	        return Promise.all([_this2._cryptoUtil.exportKey(data[0].publicKey, 'spki')]);
+	        return Promise.all([_this3.exportKey(keys[0].publicKey, 'spki')]);
+	        //the wrapper for exportKey takes the immutable non-readable webcrypto objects
+	        //and gives the public keys to us as something we can package and use
+	        //these keys are used to sign messages
 	      }).then(function (exportedKeys) {
 	        if (!exportedKeys) {
-	          return reject('Could not create a user session');
+	          return reject('ERR_CreateUserSession: Could not create keys in user session');
 	        }
 
 	        return resolve({
@@ -172,28 +239,36 @@
 	      });
 	    }
 	  }, {
-	    key: 'checkSessionUsernames',
-	    value: function checkSessionUsernames(username) {
+	    key: 'checkConnectedUsers',
+	    value: function checkConnectedUsers(username) {
+	      //is anyone connected?
+
 	      var matches = _lodash2.default.find(this._users, function (users) {
 	        return username.toLowerCase() === users.username.toLowerCase();
 	      });
-
 	      if (matches && matches.username) {
 	        return matches;
 	      }
-
 	      return false;
 	    }
 	  }, {
 	    key: 'removeUser',
 	    value: function removeUser(data) {
-	      this._users = _lodash2.default.without(this._users, _lodash2.default.findWhere(this._users, { id: data.id }));
+	      this._users = (0, _lodash4.default)(this._users, _lodash2.default.find(this._users, { id: data.id }));
 	      return this._users;
 	    }
+
+	    /**
+	    *
+	    *ENCRYPTION AND DECRYPTION OF MESSAGES
+	    *
+	    *
+	    **/
+
 	  }, {
 	    key: 'encrypt',
-	    value: function encrypt(message, messageType, options) {
-	      var _this3 = this;
+	    value: function encrypt(message, options) {
+	      var _this4 = this;
 
 	      //this promise is a chain that defers action
 	      //until the entire crypto process has been followed through with
@@ -201,10 +276,9 @@
 	      return new Promise(function (resolve, reject) {
 	        options = options || {};
 
-	        //don't want to send messages
-	        if (message && _this3._connected) {
+	        //don't want to send messages without connection or message
+	        if (message && _this4._connected) {
 	          (function () {
-	            var vector = _this3._cryptoUtil.crypto.getRandomValues(new Uint8Array(16));
 
 	            var secretKey = null;
 	            var secretKeys = null;
@@ -212,21 +286,36 @@
 	            var signature = null;
 	            var signingKey = null;
 	            var encryptedMessageData = null;
-	            var messageToEncode = {
+	            //this vector is the random seed using webcrypto random numbers
+	            var vector = _this4.crypto.getRandomValues(new Uint8Array(16));
+	            var messagePreEncryption = {
 	              text: escape(message),
 	              options: options
 	            };
-
-	            messageToEncode = JSON.stringify(messageToEncode);
+	            messagePreEncryption = JSON.stringify(messagePreEncryption);
 	            // Generate new secret key and vector for each message
-	            _this3._cryptoUtil.createSecretKey().then(function (key) {
+
+	            //Beginning of encryption logic
+	            //Create a secret key using webcrypto async
+	            //After, create a signingkey using webcrypto
+	            //with this signing key, we need to make a promise for the other user
+	            //we only allow two users, but we need to make sure we don't sign the message
+	            //with our own public key. if we do that, then it completely invalidated
+	            //the signature and encyption algorithm as a whole. bad idea!
+	            //
+	            //Export secret key
+	            //encrypt this secret key
+	            //export signing key after getting secret key in plain text
+	            //encyrpt this signing key
+
+	            _this4.createSecretKey().then(function (key) {
 	              secretKey = key;
-	              return _this3._cryptoUtil.createSigningKey();
+	              return _this4.createSigningKey();
 	            }).then(function (key) {
 	              signingKey = key;
 	              // Generate secretKey and encrypt with each user's public key
 	              var promises = [];
-	              _lodash2.default.each(_this3._users, function (user) {
+	              _lodash2.default.each(_this4._users, function (user) {
 	                // If not me
 	                if (user.username !== window.username) {
 	                  var promise = new Promise(function (res, rej) {
@@ -235,19 +324,19 @@
 	                    var secretKeyStr = void 0;
 
 	                    // Export secret key
-	                    _this3._cryptoUtil.exportKey(secretKey, 'raw').then(function (data) {
-	                      return _this3._cryptoUtil.encryptSecretKey(data, thisUser.publicKey);
+	                    _this4.exportKey(secretKey, 'raw').then(function (data) {
+	                      return _this4.encryptSecretKey(data, thisUser.publicKey);
 	                    }).then(function (encryptedSecretKey) {
 	                      var encData = new Uint8Array(encryptedSecretKey);
-	                      secretKeyStr = _this3._cryptoUtil.convertArrayBufferViewToString(encData);
+	                      secretKeyStr = _this4.convertArrayBufferViewToString(encData);
 	                      // Export HMAC signing key
-	                      return _this3._cryptoUtil.exportKey(signingKey, 'raw');
+	                      return _this4.exportKey(signingKey, 'raw');
 	                    }).then(function (data) {
 	                      // Encrypt signing key with user's public key
-	                      return _this3._cryptoUtil.encryptSigningKey(data, thisUser.publicKey);
+	                      return _this4.encryptSigningKey(data, thisUser.publicKey);
 	                    }).then(function (encryptedSigningKey) {
 	                      var encData = new Uint8Array(encryptedSigningKey);
-	                      var str = _this3._cryptoUtil.convertArrayBufferViewToString(encData);
+	                      var str = _this4.convertArrayBufferViewToString(encData);
 	                      res({
 	                        id: thisUser.id,
 	                        secretKey: secretKeyStr,
@@ -261,21 +350,20 @@
 	              return Promise.all(promises);
 	            }).then(function (data) {
 	              secretKeys = data;
-	              messageData = _this3._cryptoUtil.convertStringToArrayBufferView(messageToEncode);
-	              return _this3._cryptoUtil.signKey(messageData, signingKey);
+	              messageData = _this4.convertStringToArrayBufferView(messagePreEncryption);
+	              return _this4.signKey(messageData, signingKey);
 	            }).then(function (data) {
 	              signature = data;
-	              return _this3._cryptoUtil.encryptMessage(messageData, secretKey, vector);
+	              return _this4.encryptMessage(messageData, secretKey, vector);
 	            }).then(function (data) {
 	              encryptedMessageData = data;
-	              var vct = _this3._cryptoUtil.convertArrayBufferViewToString(new Uint8Array(vector));
-	              var sig = _this3._cryptoUtil.convertArrayBufferViewToString(new Uint8Array(signature));
-	              var msg = _this3._cryptoUtil.convertArrayBufferViewToString(new Uint8Array(encryptedMessageData));
+	              var vct = _this4.convertArrayBufferViewToString(new Uint8Array(vector));
+	              var sig = _this4.convertArrayBufferViewToString(new Uint8Array(signature));
+	              var msg = _this4.convertArrayBufferViewToString(new Uint8Array(encryptedMessageData));
 
 	              resolve({
 	                message: msg,
 	                vector: vct,
-	                messageType: messageType,
 	                secretKeys: secretKeys,
 	                signature: sig
 	              });
@@ -284,50 +372,52 @@
 	        }
 	      });
 	    }
+
+	    //reverse encryption algorithm
+
 	  }, {
 	    key: 'decrypt',
 	    value: function decrypt(data) {
-	      var _this4 = this;
+	      var _this5 = this;
 
 	      return new Promise(function (resolve, reject) {
 	        var message = data.message;
-	        var messageData = _this4._cryptoUtil.convertStringToArrayBufferView(message);
+	        var messageData = _this5.convertStringToArrayBufferView(message);
 	        var username = data.username;
 	        var senderId = data.id;
 	        var vector = data.vector;
-	        var vectorData = _this4._cryptoUtil.convertStringToArrayBufferView(vector);
+	        var vectorData = _this5.convertStringToArrayBufferView(vector);
 	        var secretKeys = data.secretKeys;
 	        var decryptedMessageData = void 0;
 	        var decryptedMessage = void 0;
 
 	        var mySecretKey = _lodash2.default.find(secretKeys, function (key) {
-	          return key.id === _this4._myUserId;
+	          return key.id === _this5._currentUserId;
 	        });
 	        var signature = data.signature;
-	        var signatureData = _this4._cryptoUtil.convertStringToArrayBufferView(signature);
-	        var secretKeyArrayBuffer = _this4._cryptoUtil.convertStringToArrayBufferView(mySecretKey.secretKey);
-	        var signingKeyArrayBuffer = _this4._cryptoUtil.convertStringToArrayBufferView(mySecretKey.encryptedSigningKey);
+	        var signatureData = _this5.convertStringToArrayBufferView(signature);
+	        var secretKeyArrayBuffer = _this5.convertStringToArrayBufferView(mySecretKey.secretKey);
+	        var signingKeyArrayBuffer = _this5.convertStringToArrayBufferView(mySecretKey.encryptedSigningKey);
 
-	        _this4._cryptoUtil.decryptSecretKey(secretKeyArrayBuffer, _this4._keys.private).then(function (data) {
-	          return _this4._cryptoUtil.importSecretKey(new Uint8Array(data), 'raw');
+	        _this5.decryptSecretKey(secretKeyArrayBuffer, _this5._keys.private).then(function (data) {
+	          return _this5.importSecretKey(new Uint8Array(data), 'raw');
 	        }).then(function (data) {
 	          var secretKey = data;
-	          return _this4._cryptoUtil.decryptMessage(messageData, secretKey, vectorData);
+	          return _this5.decryptMessage(messageData, secretKey, vectorData);
 	        }).then(function (data) {
 	          decryptedMessageData = data;
-	          decryptedMessage = JSON.parse(_this4._cryptoUtil.convertArrayBufferViewToString(new Uint8Array(data)));
-	          return _this4._cryptoUtil.decryptSigningKey(signingKeyArrayBuffer, _this4._keys.private);
+	          decryptedMessage = JSON.parse(_this5.convertArrayBufferViewToString(new Uint8Array(data)));
+	          return _this5.decryptSigningKey(signingKeyArrayBuffer, _this5._keys.private);
 	        }).then(function (data) {
-	          return _this4._cryptoUtil.importSigningKey(new Uint8Array(data), 'raw');
+	          return _this5.importSigningKey(new Uint8Array(data), 'raw');
 	        }).then(function (data) {
 	          var signingKey = data;
-	          return _this4._cryptoUtil.verifyKey(signatureData, decryptedMessageData, signingKey);
+	          return _this5.verifyKey(signatureData, decryptedMessageData, signingKey);
 	        }).then(function (bool) {
 	          if (bool) {
 	            resolve({
 	              username: username,
-	              message: decryptedMessage,
-	              messageType: data.messageType
+	              message: decryptedMessage
 	            });
 	          }
 	        });
@@ -362,8 +452,9 @@
 
 	    /**
 	    *
-	    *
-	    *WRAPPER functions
+	    *WEBCRYPTO
+	    *WRAPPER functions from WebCrypto docs,
+	    *Spindle blog, and DW codebase
 	    *
 	    **/
 
@@ -544,6 +635,11 @@
 	    **/
 
 	  }, {
+	    key: 'getUserById',
+	    value: function getUserById(id) {
+	      return this._users[id];
+	    }
+	  }, {
 	    key: 'crypto',
 	    get: function get() {
 	      return this._crypto;
@@ -573,10 +669,10 @@
 	    }
 	  }]);
 
-	  return Crypto;
+	  return CryptoSession;
 	}();
 
-	exports.default = Crypto;
+	exports.default = CryptoSession;
 
 /***/ },
 /* 2 */
@@ -17665,6 +17761,1064 @@
 		return module;
 	}
 
+
+/***/ },
+/* 4 */
+/***/ function(module, exports) {
+
+	/* WEBPACK VAR INJECTION */(function(global) {/**
+	 * lodash (Custom Build) <https://lodash.com/>
+	 * Build: `lodash modularize exports="npm" -o ./`
+	 * Copyright jQuery Foundation and other contributors <https://jquery.org/>
+	 * Released under MIT license <https://lodash.com/license>
+	 * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+	 * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+	 */
+
+	/** Used as the size to enable large array optimizations. */
+	var LARGE_ARRAY_SIZE = 200;
+
+	/** Used to stand-in for `undefined` hash values. */
+	var HASH_UNDEFINED = '__lodash_hash_undefined__';
+
+	/** Used as references for various `Number` constants. */
+	var MAX_SAFE_INTEGER = 9007199254740991;
+
+	/** `Object#toString` result references. */
+	var funcTag = '[object Function]',
+	    genTag = '[object GeneratorFunction]';
+
+	/**
+	 * Used to match `RegExp`
+	 * [syntax characters](http://ecma-international.org/ecma-262/7.0/#sec-patterns).
+	 */
+	var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
+
+	/** Used to detect host constructors (Safari). */
+	var reIsHostCtor = /^\[object .+?Constructor\]$/;
+
+	/** Detect free variable `global` from Node.js. */
+	var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
+
+	/** Detect free variable `self`. */
+	var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
+
+	/** Used as a reference to the global object. */
+	var root = freeGlobal || freeSelf || Function('return this')();
+
+	/**
+	 * A faster alternative to `Function#apply`, this function invokes `func`
+	 * with the `this` binding of `thisArg` and the arguments of `args`.
+	 *
+	 * @private
+	 * @param {Function} func The function to invoke.
+	 * @param {*} thisArg The `this` binding of `func`.
+	 * @param {Array} args The arguments to invoke `func` with.
+	 * @returns {*} Returns the result of `func`.
+	 */
+	function apply(func, thisArg, args) {
+	  switch (args.length) {
+	    case 0: return func.call(thisArg);
+	    case 1: return func.call(thisArg, args[0]);
+	    case 2: return func.call(thisArg, args[0], args[1]);
+	    case 3: return func.call(thisArg, args[0], args[1], args[2]);
+	  }
+	  return func.apply(thisArg, args);
+	}
+
+	/**
+	 * A specialized version of `_.includes` for arrays without support for
+	 * specifying an index to search from.
+	 *
+	 * @private
+	 * @param {Array} [array] The array to inspect.
+	 * @param {*} target The value to search for.
+	 * @returns {boolean} Returns `true` if `target` is found, else `false`.
+	 */
+	function arrayIncludes(array, value) {
+	  var length = array ? array.length : 0;
+	  return !!length && baseIndexOf(array, value, 0) > -1;
+	}
+
+	/**
+	 * This function is like `arrayIncludes` except that it accepts a comparator.
+	 *
+	 * @private
+	 * @param {Array} [array] The array to inspect.
+	 * @param {*} target The value to search for.
+	 * @param {Function} comparator The comparator invoked per element.
+	 * @returns {boolean} Returns `true` if `target` is found, else `false`.
+	 */
+	function arrayIncludesWith(array, value, comparator) {
+	  var index = -1,
+	      length = array ? array.length : 0;
+
+	  while (++index < length) {
+	    if (comparator(value, array[index])) {
+	      return true;
+	    }
+	  }
+	  return false;
+	}
+
+	/**
+	 * A specialized version of `_.map` for arrays without support for iteratee
+	 * shorthands.
+	 *
+	 * @private
+	 * @param {Array} [array] The array to iterate over.
+	 * @param {Function} iteratee The function invoked per iteration.
+	 * @returns {Array} Returns the new mapped array.
+	 */
+	function arrayMap(array, iteratee) {
+	  var index = -1,
+	      length = array ? array.length : 0,
+	      result = Array(length);
+
+	  while (++index < length) {
+	    result[index] = iteratee(array[index], index, array);
+	  }
+	  return result;
+	}
+
+	/**
+	 * The base implementation of `_.findIndex` and `_.findLastIndex` without
+	 * support for iteratee shorthands.
+	 *
+	 * @private
+	 * @param {Array} array The array to inspect.
+	 * @param {Function} predicate The function invoked per iteration.
+	 * @param {number} fromIndex The index to search from.
+	 * @param {boolean} [fromRight] Specify iterating from right to left.
+	 * @returns {number} Returns the index of the matched value, else `-1`.
+	 */
+	function baseFindIndex(array, predicate, fromIndex, fromRight) {
+	  var length = array.length,
+	      index = fromIndex + (fromRight ? 1 : -1);
+
+	  while ((fromRight ? index-- : ++index < length)) {
+	    if (predicate(array[index], index, array)) {
+	      return index;
+	    }
+	  }
+	  return -1;
+	}
+
+	/**
+	 * The base implementation of `_.indexOf` without `fromIndex` bounds checks.
+	 *
+	 * @private
+	 * @param {Array} array The array to inspect.
+	 * @param {*} value The value to search for.
+	 * @param {number} fromIndex The index to search from.
+	 * @returns {number} Returns the index of the matched value, else `-1`.
+	 */
+	function baseIndexOf(array, value, fromIndex) {
+	  if (value !== value) {
+	    return baseFindIndex(array, baseIsNaN, fromIndex);
+	  }
+	  var index = fromIndex - 1,
+	      length = array.length;
+
+	  while (++index < length) {
+	    if (array[index] === value) {
+	      return index;
+	    }
+	  }
+	  return -1;
+	}
+
+	/**
+	 * The base implementation of `_.isNaN` without support for number objects.
+	 *
+	 * @private
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is `NaN`, else `false`.
+	 */
+	function baseIsNaN(value) {
+	  return value !== value;
+	}
+
+	/**
+	 * The base implementation of `_.unary` without support for storing metadata.
+	 *
+	 * @private
+	 * @param {Function} func The function to cap arguments for.
+	 * @returns {Function} Returns the new capped function.
+	 */
+	function baseUnary(func) {
+	  return function(value) {
+	    return func(value);
+	  };
+	}
+
+	/**
+	 * Checks if a cache value for `key` exists.
+	 *
+	 * @private
+	 * @param {Object} cache The cache to query.
+	 * @param {string} key The key of the entry to check.
+	 * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+	 */
+	function cacheHas(cache, key) {
+	  return cache.has(key);
+	}
+
+	/**
+	 * Gets the value at `key` of `object`.
+	 *
+	 * @private
+	 * @param {Object} [object] The object to query.
+	 * @param {string} key The key of the property to get.
+	 * @returns {*} Returns the property value.
+	 */
+	function getValue(object, key) {
+	  return object == null ? undefined : object[key];
+	}
+
+	/**
+	 * Checks if `value` is a host object in IE < 9.
+	 *
+	 * @private
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is a host object, else `false`.
+	 */
+	function isHostObject(value) {
+	  // Many host objects are `Object` objects that can coerce to strings
+	  // despite having improperly defined `toString` methods.
+	  var result = false;
+	  if (value != null && typeof value.toString != 'function') {
+	    try {
+	      result = !!(value + '');
+	    } catch (e) {}
+	  }
+	  return result;
+	}
+
+	/** Used for built-in method references. */
+	var arrayProto = Array.prototype,
+	    funcProto = Function.prototype,
+	    objectProto = Object.prototype;
+
+	/** Used to detect overreaching core-js shims. */
+	var coreJsData = root['__core-js_shared__'];
+
+	/** Used to detect methods masquerading as native. */
+	var maskSrcKey = (function() {
+	  var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || '');
+	  return uid ? ('Symbol(src)_1.' + uid) : '';
+	}());
+
+	/** Used to resolve the decompiled source of functions. */
+	var funcToString = funcProto.toString;
+
+	/** Used to check objects for own properties. */
+	var hasOwnProperty = objectProto.hasOwnProperty;
+
+	/**
+	 * Used to resolve the
+	 * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
+	 * of values.
+	 */
+	var objectToString = objectProto.toString;
+
+	/** Used to detect if a method is native. */
+	var reIsNative = RegExp('^' +
+	  funcToString.call(hasOwnProperty).replace(reRegExpChar, '\\$&')
+	  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
+	);
+
+	/** Built-in value references. */
+	var splice = arrayProto.splice;
+
+	/* Built-in method references for those with the same name as other `lodash` methods. */
+	var nativeMax = Math.max;
+
+	/* Built-in method references that are verified to be native. */
+	var Map = getNative(root, 'Map'),
+	    nativeCreate = getNative(Object, 'create');
+
+	/**
+	 * Creates a hash object.
+	 *
+	 * @private
+	 * @constructor
+	 * @param {Array} [entries] The key-value pairs to cache.
+	 */
+	function Hash(entries) {
+	  var index = -1,
+	      length = entries ? entries.length : 0;
+
+	  this.clear();
+	  while (++index < length) {
+	    var entry = entries[index];
+	    this.set(entry[0], entry[1]);
+	  }
+	}
+
+	/**
+	 * Removes all key-value entries from the hash.
+	 *
+	 * @private
+	 * @name clear
+	 * @memberOf Hash
+	 */
+	function hashClear() {
+	  this.__data__ = nativeCreate ? nativeCreate(null) : {};
+	}
+
+	/**
+	 * Removes `key` and its value from the hash.
+	 *
+	 * @private
+	 * @name delete
+	 * @memberOf Hash
+	 * @param {Object} hash The hash to modify.
+	 * @param {string} key The key of the value to remove.
+	 * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+	 */
+	function hashDelete(key) {
+	  return this.has(key) && delete this.__data__[key];
+	}
+
+	/**
+	 * Gets the hash value for `key`.
+	 *
+	 * @private
+	 * @name get
+	 * @memberOf Hash
+	 * @param {string} key The key of the value to get.
+	 * @returns {*} Returns the entry value.
+	 */
+	function hashGet(key) {
+	  var data = this.__data__;
+	  if (nativeCreate) {
+	    var result = data[key];
+	    return result === HASH_UNDEFINED ? undefined : result;
+	  }
+	  return hasOwnProperty.call(data, key) ? data[key] : undefined;
+	}
+
+	/**
+	 * Checks if a hash value for `key` exists.
+	 *
+	 * @private
+	 * @name has
+	 * @memberOf Hash
+	 * @param {string} key The key of the entry to check.
+	 * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+	 */
+	function hashHas(key) {
+	  var data = this.__data__;
+	  return nativeCreate ? data[key] !== undefined : hasOwnProperty.call(data, key);
+	}
+
+	/**
+	 * Sets the hash `key` to `value`.
+	 *
+	 * @private
+	 * @name set
+	 * @memberOf Hash
+	 * @param {string} key The key of the value to set.
+	 * @param {*} value The value to set.
+	 * @returns {Object} Returns the hash instance.
+	 */
+	function hashSet(key, value) {
+	  var data = this.__data__;
+	  data[key] = (nativeCreate && value === undefined) ? HASH_UNDEFINED : value;
+	  return this;
+	}
+
+	// Add methods to `Hash`.
+	Hash.prototype.clear = hashClear;
+	Hash.prototype['delete'] = hashDelete;
+	Hash.prototype.get = hashGet;
+	Hash.prototype.has = hashHas;
+	Hash.prototype.set = hashSet;
+
+	/**
+	 * Creates an list cache object.
+	 *
+	 * @private
+	 * @constructor
+	 * @param {Array} [entries] The key-value pairs to cache.
+	 */
+	function ListCache(entries) {
+	  var index = -1,
+	      length = entries ? entries.length : 0;
+
+	  this.clear();
+	  while (++index < length) {
+	    var entry = entries[index];
+	    this.set(entry[0], entry[1]);
+	  }
+	}
+
+	/**
+	 * Removes all key-value entries from the list cache.
+	 *
+	 * @private
+	 * @name clear
+	 * @memberOf ListCache
+	 */
+	function listCacheClear() {
+	  this.__data__ = [];
+	}
+
+	/**
+	 * Removes `key` and its value from the list cache.
+	 *
+	 * @private
+	 * @name delete
+	 * @memberOf ListCache
+	 * @param {string} key The key of the value to remove.
+	 * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+	 */
+	function listCacheDelete(key) {
+	  var data = this.__data__,
+	      index = assocIndexOf(data, key);
+
+	  if (index < 0) {
+	    return false;
+	  }
+	  var lastIndex = data.length - 1;
+	  if (index == lastIndex) {
+	    data.pop();
+	  } else {
+	    splice.call(data, index, 1);
+	  }
+	  return true;
+	}
+
+	/**
+	 * Gets the list cache value for `key`.
+	 *
+	 * @private
+	 * @name get
+	 * @memberOf ListCache
+	 * @param {string} key The key of the value to get.
+	 * @returns {*} Returns the entry value.
+	 */
+	function listCacheGet(key) {
+	  var data = this.__data__,
+	      index = assocIndexOf(data, key);
+
+	  return index < 0 ? undefined : data[index][1];
+	}
+
+	/**
+	 * Checks if a list cache value for `key` exists.
+	 *
+	 * @private
+	 * @name has
+	 * @memberOf ListCache
+	 * @param {string} key The key of the entry to check.
+	 * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+	 */
+	function listCacheHas(key) {
+	  return assocIndexOf(this.__data__, key) > -1;
+	}
+
+	/**
+	 * Sets the list cache `key` to `value`.
+	 *
+	 * @private
+	 * @name set
+	 * @memberOf ListCache
+	 * @param {string} key The key of the value to set.
+	 * @param {*} value The value to set.
+	 * @returns {Object} Returns the list cache instance.
+	 */
+	function listCacheSet(key, value) {
+	  var data = this.__data__,
+	      index = assocIndexOf(data, key);
+
+	  if (index < 0) {
+	    data.push([key, value]);
+	  } else {
+	    data[index][1] = value;
+	  }
+	  return this;
+	}
+
+	// Add methods to `ListCache`.
+	ListCache.prototype.clear = listCacheClear;
+	ListCache.prototype['delete'] = listCacheDelete;
+	ListCache.prototype.get = listCacheGet;
+	ListCache.prototype.has = listCacheHas;
+	ListCache.prototype.set = listCacheSet;
+
+	/**
+	 * Creates a map cache object to store key-value pairs.
+	 *
+	 * @private
+	 * @constructor
+	 * @param {Array} [entries] The key-value pairs to cache.
+	 */
+	function MapCache(entries) {
+	  var index = -1,
+	      length = entries ? entries.length : 0;
+
+	  this.clear();
+	  while (++index < length) {
+	    var entry = entries[index];
+	    this.set(entry[0], entry[1]);
+	  }
+	}
+
+	/**
+	 * Removes all key-value entries from the map.
+	 *
+	 * @private
+	 * @name clear
+	 * @memberOf MapCache
+	 */
+	function mapCacheClear() {
+	  this.__data__ = {
+	    'hash': new Hash,
+	    'map': new (Map || ListCache),
+	    'string': new Hash
+	  };
+	}
+
+	/**
+	 * Removes `key` and its value from the map.
+	 *
+	 * @private
+	 * @name delete
+	 * @memberOf MapCache
+	 * @param {string} key The key of the value to remove.
+	 * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+	 */
+	function mapCacheDelete(key) {
+	  return getMapData(this, key)['delete'](key);
+	}
+
+	/**
+	 * Gets the map value for `key`.
+	 *
+	 * @private
+	 * @name get
+	 * @memberOf MapCache
+	 * @param {string} key The key of the value to get.
+	 * @returns {*} Returns the entry value.
+	 */
+	function mapCacheGet(key) {
+	  return getMapData(this, key).get(key);
+	}
+
+	/**
+	 * Checks if a map value for `key` exists.
+	 *
+	 * @private
+	 * @name has
+	 * @memberOf MapCache
+	 * @param {string} key The key of the entry to check.
+	 * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+	 */
+	function mapCacheHas(key) {
+	  return getMapData(this, key).has(key);
+	}
+
+	/**
+	 * Sets the map `key` to `value`.
+	 *
+	 * @private
+	 * @name set
+	 * @memberOf MapCache
+	 * @param {string} key The key of the value to set.
+	 * @param {*} value The value to set.
+	 * @returns {Object} Returns the map cache instance.
+	 */
+	function mapCacheSet(key, value) {
+	  getMapData(this, key).set(key, value);
+	  return this;
+	}
+
+	// Add methods to `MapCache`.
+	MapCache.prototype.clear = mapCacheClear;
+	MapCache.prototype['delete'] = mapCacheDelete;
+	MapCache.prototype.get = mapCacheGet;
+	MapCache.prototype.has = mapCacheHas;
+	MapCache.prototype.set = mapCacheSet;
+
+	/**
+	 *
+	 * Creates an array cache object to store unique values.
+	 *
+	 * @private
+	 * @constructor
+	 * @param {Array} [values] The values to cache.
+	 */
+	function SetCache(values) {
+	  var index = -1,
+	      length = values ? values.length : 0;
+
+	  this.__data__ = new MapCache;
+	  while (++index < length) {
+	    this.add(values[index]);
+	  }
+	}
+
+	/**
+	 * Adds `value` to the array cache.
+	 *
+	 * @private
+	 * @name add
+	 * @memberOf SetCache
+	 * @alias push
+	 * @param {*} value The value to cache.
+	 * @returns {Object} Returns the cache instance.
+	 */
+	function setCacheAdd(value) {
+	  this.__data__.set(value, HASH_UNDEFINED);
+	  return this;
+	}
+
+	/**
+	 * Checks if `value` is in the array cache.
+	 *
+	 * @private
+	 * @name has
+	 * @memberOf SetCache
+	 * @param {*} value The value to search for.
+	 * @returns {number} Returns `true` if `value` is found, else `false`.
+	 */
+	function setCacheHas(value) {
+	  return this.__data__.has(value);
+	}
+
+	// Add methods to `SetCache`.
+	SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
+	SetCache.prototype.has = setCacheHas;
+
+	/**
+	 * Gets the index at which the `key` is found in `array` of key-value pairs.
+	 *
+	 * @private
+	 * @param {Array} array The array to inspect.
+	 * @param {*} key The key to search for.
+	 * @returns {number} Returns the index of the matched value, else `-1`.
+	 */
+	function assocIndexOf(array, key) {
+	  var length = array.length;
+	  while (length--) {
+	    if (eq(array[length][0], key)) {
+	      return length;
+	    }
+	  }
+	  return -1;
+	}
+
+	/**
+	 * The base implementation of methods like `_.difference` without support
+	 * for excluding multiple arrays or iteratee shorthands.
+	 *
+	 * @private
+	 * @param {Array} array The array to inspect.
+	 * @param {Array} values The values to exclude.
+	 * @param {Function} [iteratee] The iteratee invoked per element.
+	 * @param {Function} [comparator] The comparator invoked per element.
+	 * @returns {Array} Returns the new array of filtered values.
+	 */
+	function baseDifference(array, values, iteratee, comparator) {
+	  var index = -1,
+	      includes = arrayIncludes,
+	      isCommon = true,
+	      length = array.length,
+	      result = [],
+	      valuesLength = values.length;
+
+	  if (!length) {
+	    return result;
+	  }
+	  if (iteratee) {
+	    values = arrayMap(values, baseUnary(iteratee));
+	  }
+	  if (comparator) {
+	    includes = arrayIncludesWith;
+	    isCommon = false;
+	  }
+	  else if (values.length >= LARGE_ARRAY_SIZE) {
+	    includes = cacheHas;
+	    isCommon = false;
+	    values = new SetCache(values);
+	  }
+	  outer:
+	  while (++index < length) {
+	    var value = array[index],
+	        computed = iteratee ? iteratee(value) : value;
+
+	    value = (comparator || value !== 0) ? value : 0;
+	    if (isCommon && computed === computed) {
+	      var valuesIndex = valuesLength;
+	      while (valuesIndex--) {
+	        if (values[valuesIndex] === computed) {
+	          continue outer;
+	        }
+	      }
+	      result.push(value);
+	    }
+	    else if (!includes(values, computed, comparator)) {
+	      result.push(value);
+	    }
+	  }
+	  return result;
+	}
+
+	/**
+	 * The base implementation of `_.isNative` without bad shim checks.
+	 *
+	 * @private
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is a native function,
+	 *  else `false`.
+	 */
+	function baseIsNative(value) {
+	  if (!isObject(value) || isMasked(value)) {
+	    return false;
+	  }
+	  var pattern = (isFunction(value) || isHostObject(value)) ? reIsNative : reIsHostCtor;
+	  return pattern.test(toSource(value));
+	}
+
+	/**
+	 * The base implementation of `_.rest` which doesn't validate or coerce arguments.
+	 *
+	 * @private
+	 * @param {Function} func The function to apply a rest parameter to.
+	 * @param {number} [start=func.length-1] The start position of the rest parameter.
+	 * @returns {Function} Returns the new function.
+	 */
+	function baseRest(func, start) {
+	  start = nativeMax(start === undefined ? (func.length - 1) : start, 0);
+	  return function() {
+	    var args = arguments,
+	        index = -1,
+	        length = nativeMax(args.length - start, 0),
+	        array = Array(length);
+
+	    while (++index < length) {
+	      array[index] = args[start + index];
+	    }
+	    index = -1;
+	    var otherArgs = Array(start + 1);
+	    while (++index < start) {
+	      otherArgs[index] = args[index];
+	    }
+	    otherArgs[start] = array;
+	    return apply(func, this, otherArgs);
+	  };
+	}
+
+	/**
+	 * Gets the data for `map`.
+	 *
+	 * @private
+	 * @param {Object} map The map to query.
+	 * @param {string} key The reference key.
+	 * @returns {*} Returns the map data.
+	 */
+	function getMapData(map, key) {
+	  var data = map.__data__;
+	  return isKeyable(key)
+	    ? data[typeof key == 'string' ? 'string' : 'hash']
+	    : data.map;
+	}
+
+	/**
+	 * Gets the native function at `key` of `object`.
+	 *
+	 * @private
+	 * @param {Object} object The object to query.
+	 * @param {string} key The key of the method to get.
+	 * @returns {*} Returns the function if it's native, else `undefined`.
+	 */
+	function getNative(object, key) {
+	  var value = getValue(object, key);
+	  return baseIsNative(value) ? value : undefined;
+	}
+
+	/**
+	 * Checks if `value` is suitable for use as unique object key.
+	 *
+	 * @private
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is suitable, else `false`.
+	 */
+	function isKeyable(value) {
+	  var type = typeof value;
+	  return (type == 'string' || type == 'number' || type == 'symbol' || type == 'boolean')
+	    ? (value !== '__proto__')
+	    : (value === null);
+	}
+
+	/**
+	 * Checks if `func` has its source masked.
+	 *
+	 * @private
+	 * @param {Function} func The function to check.
+	 * @returns {boolean} Returns `true` if `func` is masked, else `false`.
+	 */
+	function isMasked(func) {
+	  return !!maskSrcKey && (maskSrcKey in func);
+	}
+
+	/**
+	 * Converts `func` to its source code.
+	 *
+	 * @private
+	 * @param {Function} func The function to process.
+	 * @returns {string} Returns the source code.
+	 */
+	function toSource(func) {
+	  if (func != null) {
+	    try {
+	      return funcToString.call(func);
+	    } catch (e) {}
+	    try {
+	      return (func + '');
+	    } catch (e) {}
+	  }
+	  return '';
+	}
+
+	/**
+	 * Creates an array excluding all given values using
+	 * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+	 * for equality comparisons.
+	 *
+	 * **Note:** Unlike `_.pull`, this method returns a new array.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 0.1.0
+	 * @category Array
+	 * @param {Array} array The array to inspect.
+	 * @param {...*} [values] The values to exclude.
+	 * @returns {Array} Returns the new array of filtered values.
+	 * @see _.difference, _.xor
+	 * @example
+	 *
+	 * _.without([2, 1, 2, 3], 1, 2);
+	 * // => [3]
+	 */
+	var without = baseRest(function(array, values) {
+	  return isArrayLikeObject(array)
+	    ? baseDifference(array, values)
+	    : [];
+	});
+
+	/**
+	 * Performs a
+	 * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+	 * comparison between two values to determine if they are equivalent.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 4.0.0
+	 * @category Lang
+	 * @param {*} value The value to compare.
+	 * @param {*} other The other value to compare.
+	 * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
+	 * @example
+	 *
+	 * var object = { 'a': 1 };
+	 * var other = { 'a': 1 };
+	 *
+	 * _.eq(object, object);
+	 * // => true
+	 *
+	 * _.eq(object, other);
+	 * // => false
+	 *
+	 * _.eq('a', 'a');
+	 * // => true
+	 *
+	 * _.eq('a', Object('a'));
+	 * // => false
+	 *
+	 * _.eq(NaN, NaN);
+	 * // => true
+	 */
+	function eq(value, other) {
+	  return value === other || (value !== value && other !== other);
+	}
+
+	/**
+	 * Checks if `value` is array-like. A value is considered array-like if it's
+	 * not a function and has a `value.length` that's an integer greater than or
+	 * equal to `0` and less than or equal to `Number.MAX_SAFE_INTEGER`.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 4.0.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
+	 * @example
+	 *
+	 * _.isArrayLike([1, 2, 3]);
+	 * // => true
+	 *
+	 * _.isArrayLike(document.body.children);
+	 * // => true
+	 *
+	 * _.isArrayLike('abc');
+	 * // => true
+	 *
+	 * _.isArrayLike(_.noop);
+	 * // => false
+	 */
+	function isArrayLike(value) {
+	  return value != null && isLength(value.length) && !isFunction(value);
+	}
+
+	/**
+	 * This method is like `_.isArrayLike` except that it also checks if `value`
+	 * is an object.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 4.0.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is an array-like object,
+	 *  else `false`.
+	 * @example
+	 *
+	 * _.isArrayLikeObject([1, 2, 3]);
+	 * // => true
+	 *
+	 * _.isArrayLikeObject(document.body.children);
+	 * // => true
+	 *
+	 * _.isArrayLikeObject('abc');
+	 * // => false
+	 *
+	 * _.isArrayLikeObject(_.noop);
+	 * // => false
+	 */
+	function isArrayLikeObject(value) {
+	  return isObjectLike(value) && isArrayLike(value);
+	}
+
+	/**
+	 * Checks if `value` is classified as a `Function` object.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 0.1.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is a function, else `false`.
+	 * @example
+	 *
+	 * _.isFunction(_);
+	 * // => true
+	 *
+	 * _.isFunction(/abc/);
+	 * // => false
+	 */
+	function isFunction(value) {
+	  // The use of `Object#toString` avoids issues with the `typeof` operator
+	  // in Safari 8-9 which returns 'object' for typed array and other constructors.
+	  var tag = isObject(value) ? objectToString.call(value) : '';
+	  return tag == funcTag || tag == genTag;
+	}
+
+	/**
+	 * Checks if `value` is a valid array-like length.
+	 *
+	 * **Note:** This method is loosely based on
+	 * [`ToLength`](http://ecma-international.org/ecma-262/7.0/#sec-tolength).
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 4.0.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+	 * @example
+	 *
+	 * _.isLength(3);
+	 * // => true
+	 *
+	 * _.isLength(Number.MIN_VALUE);
+	 * // => false
+	 *
+	 * _.isLength(Infinity);
+	 * // => false
+	 *
+	 * _.isLength('3');
+	 * // => false
+	 */
+	function isLength(value) {
+	  return typeof value == 'number' &&
+	    value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+	}
+
+	/**
+	 * Checks if `value` is the
+	 * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
+	 * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 0.1.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+	 * @example
+	 *
+	 * _.isObject({});
+	 * // => true
+	 *
+	 * _.isObject([1, 2, 3]);
+	 * // => true
+	 *
+	 * _.isObject(_.noop);
+	 * // => true
+	 *
+	 * _.isObject(null);
+	 * // => false
+	 */
+	function isObject(value) {
+	  var type = typeof value;
+	  return !!value && (type == 'object' || type == 'function');
+	}
+
+	/**
+	 * Checks if `value` is object-like. A value is object-like if it's not `null`
+	 * and has a `typeof` result of "object".
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 4.0.0
+	 * @category Lang
+	 * @param {*} value The value to check.
+	 * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+	 * @example
+	 *
+	 * _.isObjectLike({});
+	 * // => true
+	 *
+	 * _.isObjectLike([1, 2, 3]);
+	 * // => true
+	 *
+	 * _.isObjectLike(_.noop);
+	 * // => false
+	 *
+	 * _.isObjectLike(null);
+	 * // => false
+	 */
+	function isObjectLike(value) {
+	  return !!value && typeof value == 'object';
+	}
+
+	module.exports = without;
+
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ }
 /******/ ]);
