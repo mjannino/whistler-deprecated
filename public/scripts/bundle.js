@@ -92,28 +92,28 @@
 
 	            //when a new user joins, display a welcome message
 	            self.socket.on('newUser', function (user, roomID) {
-	                $('div#chatBox').append('<p class="important">New user ' + user + ' has joined room ' + roomID + '</p>');
+	                $('div#chatBox').append('<span class="important">New user ' + user + ' has joined room ' + roomID + '</span><br/>');
 	                $('div#joinForm').remove();
 	            });
 
 	            //when a new message is recieved from the server, display it with
 	            //the username that broacasted it
 	            self.socket.on('recieveMessage', function (msg, user) {
-	                $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
+	                $('div#chatBox').append('<span class="important">' + user + ': ' + msg + '</span><br/>');
 	                $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
 	            });
 
 	            //when a new user joins, update the list of users currently in the room
 	            self.socket.on('updateUsers', function (list) {
 	                $('div#userList').empty();
-	                $('div#userList').append('<p>Users:</p>');
+	                $('div#userList').append('<span>Users:</span><br/>');
 	                $.each(list, function (key, value) {
 	                    $('div#userList').append('<p class="important">' + value + '</p>');
 	                });
 	            });
 
 	            self.socket.on('userDisconnected', function (username) {
-	                $('div#chatBox').append('<p class="important">User ' + username + ' has disconnected </p>');
+	                $('div#chatBox').append('<span class="important">User ' + username + ' has disconnected </span><br/>');
 	            });
 
 	            //submit the form to join a room
