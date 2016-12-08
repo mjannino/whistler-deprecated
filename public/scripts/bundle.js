@@ -80,9 +80,7 @@
 	    function App() {
 	        _classCallCheck(this, App);
 
-	        this.crypto = new _crypto2.default();
 	        this.socket = io();
-	        this.crypto.connected = true;
 	        this.init();
 	    }
 
@@ -94,20 +92,15 @@
 
 	            //when a new user joins, display a welcome message
 	            self.socket.on('newUser', function (user, roomID) {
-
-	                self.crypto.updateUsername(user).then(function (user) {
-	                    $('div#chatBox').append('<p class="important">New user ' + user + ' has joined room ' + roomID + '</p>');
-	                });
+	                $('div#chatBox').append('<p class="important">New user ' + user + ' has joined room ' + roomID + '</p>');
 	                $('div#joinForm').remove();
 	            });
 
 	            //when a new message is recieved from the server, display it with
 	            //the username that broacasted it
 	            self.socket.on('recieveMessage', function (msg, user) {
-	                self.crypto.decrypt(msg).then(function (msg) {
-	                    $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
-	                    $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
-	                });
+	                $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
+	                $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
 	            });
 
 	            //when a new user joins, update the list of users currently in the room
@@ -142,12 +135,10 @@
 	            });
 	            $('button#sendMessage').click(function () {
 	                var msg = $('input#textBar').val();
-	                self.crypto.encrypt(msg).then(function (msg) {
-	                    console.log(msg);
-	                    //clear the text box
-	                    $('input#textBar').val('');
-	                    self.socket.emit('sendMessage', msg);
-	                });
+	                console.log(msg);
+	                //clear the text box
+	                $('input#textBar').val('');
+	                self.socket.emit('sendMessage', msg);
 	            });
 	        }
 	    }]);
