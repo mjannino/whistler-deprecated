@@ -36,6 +36,9 @@ input{
 div#userList {
     position: fixed;
     display: block;
+    margin-top:5%;
+    width:15%;
+    padding-left:4%;
 }
 
 div#chatBox {
