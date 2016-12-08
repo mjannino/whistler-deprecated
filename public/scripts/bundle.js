@@ -46,14 +46,119 @@
 
 	'use strict';
 
-	var _crypto = __webpack_require__(1);
+	var _client = __webpack_require__(1);
+
+	var _client2 = _interopRequireDefault(_client);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	$(function () {
+	  var app = new _client2.default();
+	});
+
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _crypto = __webpack_require__(2);
 
 	var _crypto2 = _interopRequireDefault(_crypto);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var App = function () {
+	    function App() {
+	        _classCallCheck(this, App);
+
+	        this.crypto = new _crypto2.default();
+	        this.socket = io();
+	        this.crypto.connected = true;
+	        this.init();
+	    }
+
+	    _createClass(App, [{
+	        key: 'init',
+	        value: function init() {
+
+	            var self = this;
+
+	            //when a new user joins, display a welcome message
+	            self.socket.on('newUser', function (user, roomID) {
+
+	                self.crypto.updateUsername(user).then(function (user) {
+	                    $('div#chatBox').append('<p class="important">New user ' + user + ' has joined room ' + roomID + '</p>');
+	                });
+	                $('div#joinForm').remove();
+	            });
+
+	            //when a new message is recieved from the server, display it with
+	            //the username that broacasted it
+	            self.socket.on('recieveMessage', function (msg, user) {
+	                self.crypto.decrypt(msg).then(function (msg) {
+	                    $('div#chatBox').append('<p class="important">' + user + ': </p><p>' + msg + '</p>');
+	                    $('div#chatBox').animate({ scrollTop: $('div#chatBox').height() }, 1000);
+	                });
+	            });
+
+	            //when a new user joins, update the list of users currently in the room
+	            self.socket.on('updateUsers', function (list) {
+	                $('div#userList').empty();
+	                $('div#userList').append('<p>Users:</p>');
+	                $.each(list, function (key, value) {
+	                    $('div#userList').append('<p class="important">' + value + '</p>');
+	                });
+	            });
+
+	            self.socket.on('userDisconnected', function (username) {
+	                $('div#chatBox').append('<p class="important">User ' + username + ' has disconnected </p>');
+	            });
+
+	            //submit the form to join a room
+	            $('button#join').click(function () {
+	                $('div#joinModal').hide();
+	                var roomID = $('input#roomID').val();
+	                self.socket.emit('joinRoom', roomID);
+	            });
+
+	            $('button#create').click(function () {
+	                self.socket.emit('createRoom');
+	            });
+
+	            //submit a message
+	            $("input#textBar").keyup(function (event) {
+	                if (event.keyCode == 13) {
+	                    $("button#sendMessage").click();
+	                }
+	            });
+	            $('button#sendMessage').click(function () {
+	                var msg = $('input#textBar').val();
+	                self.crypto.encrypt(msg).then(function (msg) {
+	                    console.log(msg);
+	                    //clear the text box
+	                    $('input#textBar').val('');
+	                    self.socket.emit('sendMessage', msg);
+	                });
+	            });
+	        }
+	    }]);
+
+	    return App;
+	}();
+
+	exports.default = App;
+
 /***/ },
-/* 1 */
+/* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64,11 +169,11 @@
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-	var _lodash = __webpack_require__(2);
+	var _lodash = __webpack_require__(3);
 
 	var _lodash2 = _interopRequireDefault(_lodash);
 
-	var _lodash3 = __webpack_require__(4);
+	var _lodash3 = __webpack_require__(5);
 
 	var _lodash4 = _interopRequireDefault(_lodash3);
 
@@ -217,6 +322,7 @@
 
 	      Promise.all([this.createPrimaryKeys() //webcrypto wrapper
 	      ]).then(function (keys) {
+	        console.log(JSON.stringify(keys));
 	        //when primary keys are created, they need to be established and attached
 	        //to the current session
 	        _this3._keys = {
@@ -312,6 +418,7 @@
 	              secretKey = key;
 	              return _this4.createSigningKey();
 	            }).then(function (key) {
+	              console.log(JSON.stringify.key);
 	              signingKey = key;
 	              // Generate secretKey and encrypt with each user's public key
 	              var promises = [];
@@ -360,7 +467,7 @@
 	              var vct = _this4.convertArrayBufferViewToString(new Uint8Array(vector));
 	              var sig = _this4.convertArrayBufferViewToString(new Uint8Array(signature));
 	              var msg = _this4.convertArrayBufferViewToString(new Uint8Array(encryptedMessageData));
-
+	              console.log(JSON.stringify(secretKeys));
 	              resolve({
 	                message: msg,
 	                vector: vct,
@@ -390,14 +497,15 @@
 	        var secretKeys = data.secretKeys;
 	        var decryptedMessageData = void 0;
 	        var decryptedMessage = void 0;
-
 	        var mySecretKey = _lodash2.default.find(secretKeys, function (key) {
 	          return key.id === _this5._currentUserId;
 	        });
 	        var signature = data.signature;
 	        var signatureData = _this5.convertStringToArrayBufferView(signature);
 	        var secretKeyArrayBuffer = _this5.convertStringToArrayBufferView(mySecretKey.secretKey);
-	        var signingKeyArrayBuffer = _this5.convertStringToArrayBufferView(mySecretKey.encryptedSigningKey);
+	        var signingKeyArrayBuffer = _this5.convertStringToArrayBufferView(mySecretKey.signature);
+
+	        console.log("after all those lets");
 
 	        _this5.decryptSecretKey(secretKeyArrayBuffer, _this5._keys.private).then(function (data) {
 	          return _this5.importSecretKey(new Uint8Array(data), 'raw');
@@ -466,10 +574,12 @@
 	        hash: { name: 'SHA-256' } }, true, //whether the key is extractable (i.e. can be used in exportKey)
 	      ['sign', 'verify'] //can be any combination of 'sign' and 'verify'
 	      );
+	      console.log("hey were making keys cause I didnt hear what you said");
 	    }
 	  }, {
 	    key: 'createPrimaryKeys',
 	    value: function createPrimaryKeys() {
+	      console.log("is this a thing");
 	      return this._crypto.subtle.generateKey({
 	        name: 'RSA-OAEP',
 	        modulusLength: 2048, //can be 1024, 2048, or 4096
@@ -675,7 +785,7 @@
 	exports.default = CryptoSession;
 
 /***/ },
-/* 2 */
+/* 3 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(global, module) {/**
@@ -17744,10 +17854,10 @@
 	  }
 	}.call(this));
 
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(3)(module)))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(4)(module)))
 
 /***/ },
-/* 3 */
+/* 4 */
 /***/ function(module, exports) {
 
 	module.exports = function(module) {
@@ -17763,7 +17873,7 @@
 
 
 /***/ },
-/* 4 */
+/* 5 */
 /***/ function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {/**

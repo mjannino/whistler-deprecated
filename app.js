@@ -48,17 +48,23 @@ io.sockets.on('connection', function(socket) {
     console.log("user connected, ID: " + socket.id);
 
     //listen for when a user joins a room
-    socket.on('joinRoom', function() {
-        console.log('hey');
-        //update the username to the crypto session?
-        //updateUsername(currentUser.username) then((currentUser) => {
+    socket.on('joinRoom', function(roomID) {
+        var currentUser = addToList(socket, roomID);
+        socket.join(currentUser.roomID);
+        users[socket.id] = currentUser;
 
-        //});
+        //emit to the room that a new user has joined.
+        io.to(currentUser.roomID).emit('newUser', currentUser.username, currentUser.roomID);
+        io.to(currentUser.roomID).emit('updateUsers', roomList[currentUser.roomID].userList);
+        console.log(roomList);
+        console.log(users);
 
+    });
+
+    socket.on('createRoom', function() {
         //add the user to the list for that room
         var currentUser = addToList(socket, socket.id);
-        //check the connected users
-        //checkConnectedUsers(currentUser.username);
+
         //join the specified room
         socket.join(currentUser.roomID);
         users[socket.id] = currentUser;
@@ -72,11 +78,9 @@ io.sockets.on('connection', function(socket) {
 
     //when a message is sent, show it to the client
     socket.on('sendMessage', function(msg) {
-        if (!msg == "") {
             io.to(users[socket.id].roomID).emit('recieveMessage', msg, socket.username);
-        }
 
-    })
+    });
 
     socket.on('disconnect', function() {
         console.log("user disconnected, ID" + socket.id);
@@ -102,19 +106,18 @@ function addToList(socket, roomID) {
     currentUser = new User;
     currentUser.username = socket.id.substring(0, 6);
     currentUser.roomID = roomID;
-    console.log(currentUser.username);
     //set the socket username
     socket.username = currentUser.username;
     //if the room does not already exist...
-    if (roomList[socket.id] === undefined) {
+    if (roomList[roomID] === undefined) {
         //...create the room and place the user in it
         currentRoom = new Room;
         currentRoom.userList.push(socket.username);
-        currentRoom.roomID = socket.id;
-        roomList[(socket.id)] = currentRoom;
+        currentRoom.roomID = roomID;
+        roomList[(roomID)] = currentRoom;
     } else {
         //..else just push them to the userlist for that room
-        roomList[(currentUser.roomID)].userList.push(socket.username);
+        roomList[(roomID)].userList.push(socket.username);
     }
     return currentUser;
 }

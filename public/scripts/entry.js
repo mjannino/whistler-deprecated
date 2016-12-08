@@ -1,1 +1,5 @@
-import CryptoSession from './crypto.js';
+import App from './client.js';
+
+$(() => {
+  let app = new App();
+});

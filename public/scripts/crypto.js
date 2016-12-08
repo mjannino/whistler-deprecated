@@ -136,6 +136,7 @@ updateUsername(username) {
       this.createPrimaryKeys() //webcrypto wrapper
     ])
     .then((keys) => {
+        console.log(JSON.stringify(keys));
       //when primary keys are created, they need to be established and attached
       //to the current session
       this._keys = {
@@ -234,6 +235,7 @@ updateUsername(username) {
           })
 
           .then((key) => {
+            console.log(JSON.stringify.key);
             signingKey = key;
             // Generate secretKey and encrypt with each user's public key
             let promises = [];
@@ -289,7 +291,7 @@ updateUsername(username) {
             let vct = this.convertArrayBufferViewToString(new Uint8Array(vector));
             let sig = this.convertArrayBufferViewToString(new Uint8Array(signature));
             let msg = this.convertArrayBufferViewToString(new Uint8Array(encryptedMessageData));
-
+            console.log(JSON.stringify(secretKeys));
             resolve({
               message: msg,
               vector: vct,
@@ -315,14 +317,15 @@ updateUsername(username) {
       let secretKeys = data.secretKeys;
       let decryptedMessageData;
       let decryptedMessage;
-
       let mySecretKey = _.find(secretKeys, (key) => {
         return key.id === this._currentUserId;
       });
       let signature = data.signature;
       let signatureData = this.convertStringToArrayBufferView(signature);
       let secretKeyArrayBuffer = this.convertStringToArrayBufferView(mySecretKey.secretKey);
-      let signingKeyArrayBuffer = this.convertStringToArrayBufferView(mySecretKey.encryptedSigningKey);
+      let signingKeyArrayBuffer = this.convertStringToArrayBufferView(mySecretKey.signature);
+
+      console.log("after all those lets");
 
       this.decryptSecretKey(secretKeyArrayBuffer, this._keys.private)
       .then((data) => {
@@ -396,9 +399,11 @@ updateUsername(username) {
       true, //whether the key is extractable (i.e. can be used in exportKey)
       ['sign', 'verify'] //can be any combination of 'sign' and 'verify'
     );
+    console.log("hey were making keys cause I didnt hear what you said");
   }
 
   createPrimaryKeys() {
+      console.log("is this a thing");
     return this._crypto.subtle.generateKey(
       {
         name: 'RSA-OAEP',
