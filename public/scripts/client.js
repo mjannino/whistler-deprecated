@@ -1,5 +1,4 @@
-import _ from 'lodash';
-import without from 'lodash-without';
+
 import CryptoSession from './crypto.js';
 
 
