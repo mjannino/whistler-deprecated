@@ -104,6 +104,41 @@ export default class CryptoSession {
   //each user has keys they need associated with them--it is VERY important
   //that this crypto module handles this.
 
+//   this._darkwire.updateUsername(username).then((socketData) => {
+//   this._chat.chatPage.show();
+//   this._chat.inputMessage.focus();
+//   this._socket.emit('add user', socketData);
+// });
+
+updateUsername(username) {
+  let user = null;
+
+  return new Promise((resolve, reject) => {
+    if (username) {
+      user = this.getUserById(this._myUserId);
+    }
+    if (user) {
+      // User exists and is attempting to change username
+      // Check if anyone else is using the requested username
+      let userExists = this.checkSessionUsernames(username);
+      if (userExists) {
+        // Someone else is using the username requested, allow reformatting
+        // if it is owned by the user, else reject the promise
+        if (userExists.id !== this._myUserId) {
+          return reject(username + ' is being used by someone else in this chat session.');
+        }
+      }
+      return resolve({
+        username: username,
+        publicKey: user.publicKey
+      });
+    }
+    // User doesn't exist, create the user
+    return this.createUserSession(resolve, reject, username);
+  });
+}
+
+
   createUserSession(resolve, reject, username) {
     Promise.all([
       this.createPrimaryKeys() //webcrypto wrapper
