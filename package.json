@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "dependencies": {
     "express": "^4.14.0",
+    "lodash": "^4.17.2",
+    "lodash.without": "^4.4.0",
     "socketio": "^1.0.0"
   },
   "devDependencies": {
