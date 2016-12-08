@@ -45,10 +45,17 @@ server.listen(process.env.PORT || 5000);
 //socketio stuff////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 io.sockets.on('connection', function(socket) {
-    console.log("user connected, ID: " + socket.id);
+    //console.log("user connected, ID: " + socket.id);
 
     //listen for when a user joins a room
     socket.on('joinRoom', function(roomID) {
+        console.log(roomList[roomID].userList.length);
+        if(roomList[roomID].userList.length > 1) {
+            console.log("hey");
+            io.to(socket.id).emit('tooManyUsers');
+            socket.disconnect();
+            return;
+        }
         var currentUser = addToList(socket, roomID);
         socket.join(currentUser.roomID);
         users[socket.id] = currentUser;
@@ -56,8 +63,8 @@ io.sockets.on('connection', function(socket) {
         //emit to the room that a new user has joined.
         io.to(currentUser.roomID).emit('newUser', currentUser.username, currentUser.roomID);
         io.to(currentUser.roomID).emit('updateUsers', roomList[currentUser.roomID].userList);
-        console.log(roomList);
-        console.log(users);
+        //console.log(roomList);
+        //console.log(users);
 
     });
 
@@ -72,8 +79,8 @@ io.sockets.on('connection', function(socket) {
         //emit to the room that a new user has joined.
         io.to(currentUser.roomID).emit('newUser', currentUser.username, currentRoom.roomID);
         io.to(currentUser.roomID).emit('updateUsers', roomList[currentUser.roomID].userList);
-        console.log(roomList);
-        console.log(users);
+        //console.log(roomList);
+        //console.log(users);
     });
 
     //when a message is sent, show it to the client

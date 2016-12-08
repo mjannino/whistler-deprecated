@@ -38,6 +38,11 @@ export default class App {
         $('div#chatBox').append('<p class="important">User ' + username + ' has disconnected </p>');
     });
 
+    //disconnect user because theres too many members in the room
+    self.socket.on('tooManyUsers', function(username){
+        $('div#chatBox').append('<p>Cannot connect to that room, too many users currently</p><p>Disconnecting...</p>')
+    })
+
     //submit the form to join a room
     $('button#join').click(function() {
         $('div#joinModal').hide();
