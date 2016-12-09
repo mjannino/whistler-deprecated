@@ -1,0 +1,73 @@
+<html>
+
+<head>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/public/css/chatroom-styles.css">
+    <link href="https://fonts.googleapis.com/css?family=Scada" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Quantico" rel="stylesheet">
+
+     </head>
+
+    <body>
+
+
+
+          <!-- Fixed navbar -->
+          <nav class="navbar navbar-default navbar-fixed-top">
+            <div class="container">
+              <div class="navbar-header navbar-styler">
+                <span class="branding-text">Whistler</span>
+              </div>
+            </div>
+          </nav>
+
+        <!-- Modal the gets thier username and room when the page loads -->
+        <div class="modal modal-container fade modal-sm col-md-offset-4 col-sm-offset-0" id="joinModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Welcome to Whisler! Please enter a roomID or click create to create a new room!</h4>
+                </div>
+                <div class="modal-body">
+                    <label for="roomID">Room ID</label>
+                    <input id="roomID" type="text" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" id="join" data-dismiss="modal">Join</button>
+                    <button type="button" class="btn btn-default" id="create" data-dismiss="modal">Create</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-app-area row">
+          <div class="col-md-2 col-lg-2" id="userList">
+              <!-- Userlist goes here -->
+          </div>
+          <div class="col-md-10 col-lg-10" id="chatBox">
+              <!-- Chat messages Go here -->
+          </div>
+          <div id="messageBar">
+              <input id="textBar" type="text" />
+              <button class="btn btn-default" id="sendMessage">Send</button>
+          </div>
+        </div>
+
+
+
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <!-- Latest compiled JavaScript for bootstrap -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/public/scripts/bundle.js"></script>
+        <!-- <script src="/public/scripts/client.js"></script> -->
+        <script>
+            $(window).load(function() {
+                $('#joinModal').modal('show');
+            });
+        </script>
+    </body>
+
+</html>

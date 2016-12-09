@@ -1,0 +1,103 @@
+
+body {
+    font-size: 1.5em;
+    background-color: #111316;
+    color: #e8e8e8;
+    font-family: 'Scada', sans-serif;
+
+}
+
+.navbar{
+  text-align:center;
+  font-size:2em;
+  color: #e8e8e8;
+  background-color:#212428;
+  border:none;
+}
+
+textarea:focus, input:focus{
+    outline: none;
+}
+
+input{
+  decoration:none;
+}
+
+.chat-app-area{
+  height:100%!important;
+}
+
+.roomIdInput{
+  color: #e8e8e8;
+  border:none;
+}
+
+#sendMessage, #textBar{
+  color: #e8e8e8;
+  border:none;
+}
+
+
+div#userList {
+    position: fixed;
+    display: block;
+    margin-top:5%;
+    width:15%;
+    padding-left:4%;
+}
+
+div#chatBox {
+    background-color:#15181c;
+    height:86%;
+    margin-left:15%;
+    margin-top:4%;
+    overflow-y: scroll;
+}
+
+div#messagebar {
+    margin-left: 15%;
+}
+
+input#textBar {
+    width: 80%;
+    background-color: #0e1011;
+}
+
+button#sendMessage {
+    width: 10%;
+    background-color: #0f141c;
+}
+
+p.important {
+    font-weight: bold;
+}
+
+.modal-container{
+  display: flex;
+  align-items: center;
+  text-align: center;
+}
+
+.modal-footer{
+  text-align: center;
+}
+
+.modal-content{
+  color: #e8e8e8;
+  background: #171819;
+  font-family: 'Quantico', sans-serif;
+
+}
+
+
+/**
+**unecessary?
+**/
+.modal-sm,
+.modal-content,
+.modal-header,
+.modal-title,
+#username,
+#roomID {
+
+}
