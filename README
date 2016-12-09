@@ -5,3 +5,38 @@ Initially from http://psitsmike.com/2011/09/node-js-and-socket-io-chat-tutorial/
 3. Run program 'node app.js'
 
 Feel free to ask any questions.
+
+Additional information:
+
+Usage
+
+
+	To use our application, you may clone our public git repository, 
+  which can be found at: https://github.com/mjannino/whistler. 
+  Upon cloning this directory into a *NIX environment, the user
+  must install the Node.js runtime and the NPM package manager. 
+  Once installed, navigating to the directory and running “npm install” 
+  will install the application dependencies; our project is built 
+  currently for our AWS instance, so you will need to change references 
+  from our AWS server/host to localhost and navigate to “localhost:5000” 
+  as our app listens on 5000. To run and build both the client code and 
+  the server code, you must also install the webpack bundler (npm install --g webpack)  
+  and the Babel transpiler (npm install --g babel, npm install babel-es2015) 
+  for the ES6 syntax transpilation. You must then run the webpack bundler 
+  that runs the babel transpiler with “npm run webpack”.
+  This will transpile all of the ES6 client code and bundle it into a 
+  usable file for the client side application, and is necessary for the 
+  socket dependencies to work. If there are any errors, then try running 
+  (npm update) to ensure you have the latest versions of our dependencies. 
+	Webpack will run as a continuous process, so in a new terminal window
+  navigate to the root directory and run “node app” to run the server in 
+  the node runtime. You may then navigate to locahost port 5000 to test out the application. 
+	If there are any questions building or running, please e-mail any of 
+  us for assistance, the build process is complicated and the tooling gets
+  in the way of itself sometimes (order matters, etc). At request, you can
+  navigate to our AWS instance at 52.90.52.220:8080--please let us know before
+  you do so, as not only is this something we have to run ourselves
+  (no cron jobs or forever.js are running currently) but we also use this as a dev server.
+  
+  
+  
