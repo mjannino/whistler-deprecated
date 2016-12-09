@@ -27,6 +27,11 @@ input{
   height:100%!important;
 }
 
+.roomIdInput{
+  color: #e8e8e8;
+  border:none;
+}
+
 #sendMessage, #textBar{
   color: #e8e8e8;
   border:none;
