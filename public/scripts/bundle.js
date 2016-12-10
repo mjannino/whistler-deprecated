@@ -72,6 +72,10 @@
 
 	var _crypto2 = _interopRequireDefault(_crypto);
 
+	var _cryptographics = __webpack_require__(6);
+
+	var _cryptographics2 = _interopRequireDefault(_cryptographics);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -81,6 +85,12 @@
 	        _classCallCheck(this, App);
 
 	        this.socket = io();
+	        this.transmitObject = {};
+	        this.transmitObject.keyBuf = "";
+	        this.transmitObject.initVector = [];
+	        this.transmitObject.cipherText = "";
+	        this.encoder = new _cryptographics2.default();
+
 	        this.init();
 	    }
 
@@ -90,11 +100,29 @@
 
 	            var self = this;
 
+	            self.socket.on('connect', function () {
+	                console.log("Connected to server");
+	            });
+
 	            //when a new user joins, display a welcome message
 	            self.socket.on('newUser', function (user, roomID) {
 	                $('div#chatBox').append('<span class="important">New user ' + user + ' has joined room ' + roomID + '</span><br/>');
 	                $('div#joinForm').remove();
 	            });
+
+	            // self.socket.on('sendAndEncrypt', function(msg){
+	            //     self.encoder.generateKey();
+	            //     self.encoder.encrypt(msg);
+	            //     self.transmitObject.keyBuf = self.encoder.keyBuf;
+	            //     self.transmitObject.initVector = self.encoder.initVector;
+	            //     self.transmitObject.cipherTextBase64 = self.encoder.cipherText;
+	            // });
+	            //
+	            // self.socker.on('recieveAndDecrypt', function(transmitObject){
+	            //     self.encoder.keyBuf = transmitObject.keyBuf;
+	            //     self.encoder.initVector = transmitObject.initVector;
+	            //     self.encoder.decrypt(transmitObject.cipherText);
+	            // });
 
 	            //when a new message is recieved from the server, display it with
 	            //the username that broacasted it
@@ -114,11 +142,6 @@
 
 	            self.socket.on('userDisconnected', function (username) {
 	                $('div#chatBox').append('<span class="important">User ' + username + ' has disconnected </span><br/>');
-	            });
-
-	            //disconnect user because theres too many members in the room
-	            self.socket.on('tooManyUsers', function (username) {
-	                $('div#chatBox').append('<p>Cannot connect to that room, too many users currently</p><p>Disconnecting...</p>');
 	            });
 
 	            //submit the form to join a room
@@ -18925,6 +18948,271 @@
 	module.exports = without;
 
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _lodash = __webpack_require__(3);
+
+	var _lodash2 = _interopRequireDefault(_lodash);
+
+	var _lodash3 = __webpack_require__(5);
+
+	var _lodash4 = _interopRequireDefault(_lodash3);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Cryptographics = function () {
+	    function Cryptographics() {
+	        _classCallCheck(this, Cryptographics);
+
+	        this.roomUserIds = [];
+	        this.currentUserId = false;
+	        this.connected = false;
+	        this.initVector = [];
+	        this.cipherTextBase64 = "";
+	        this.decryptedText = "";
+	        this.keys = {};
+	        this.keyBuf = "";
+	        this.crypto = window.crypto || false;
+
+	        //TODO: Implement no crypto modal
+
+	        if (!this._crypto || !this._crypto.subtle && !this._crypto.webkitSubtle) {
+	            $('#no-crypto').modal({
+	                backdrop: 'static',
+	                show: false,
+	                keyboard: false
+	            });
+
+	            $('#no-crypto').modal('show');
+	            return;
+	        }
+	    }
+
+	    //GETTERS AND SETTERS
+
+	    // get initVector() {
+	    //   return this.initVector;
+	    // }
+	    //
+	    // get cipherTextBase64(){
+	    //   return this.cipherTextBase64;
+	    // }
+	    //
+	    // get keyBuf(){
+	    //   return this.keyBuf;
+	    // }
+	    //
+	    // get decryptedText(){
+	    //   return this.decryptedText;
+	    // }
+	    //
+	    // set initVector() {
+	    //   return this.initVector;
+	    // }
+	    //
+	    // set cipherTextBase64(){
+	    //   return this.cipherTextBase64;
+	    // }
+	    //
+	    // set keyBuf(){
+	    //   return this.keyBuf;
+	    // }
+	    //
+	    // set decryptedText(){
+	    //   return this.decryptedText;
+	    // }
+
+
+	    //implement a basic encode method to encode a given message
+	    //implement a basic encode method to decode a given message
+	    // Cryptographic functionality for lab 1
+
+
+	    // When GenerateKey button is clicked, create a new AES-CBC
+	    // 256 bit key, export it, and put a hex encoding of it in
+	    // the Key input field.
+
+
+	    _createClass(Cryptographics, [{
+	        key: 'generateKey',
+	        value: function generateKey() {
+	            // Create a CryptoKey
+	            this.crypto.subtle.generateKey({ name: "AES-CBC", length: 256 }, true, ["encrypt", "decrypt"]).then(function (key) {
+	                // Export to ArrayBuffer
+	                return this.crypto.subtle.exportKey("raw", key);
+	            }).then(function (buf) {
+	                // Cast to a byte array, place in Key field
+	                var byteArray = new Uint8Array(buf);
+	                this.keyBuf = byteArrayToHexString(byteArray);
+	            }).catch(function (err) {
+	                // Nothing should go wrong... but it might!
+	                alert("Key generation error: " + err.message);
+	            });
+	        }
+
+	        // When the Encrypt button is pressed, create a CryptoKey
+	        // object from the hex encoded data in the Key input field,
+	        // then use that key to encrypt the plaintext. Hex encode the
+	        // random IV used and place in the IV field, and base 64 encode
+	        // the ciphertext and place in the Ciphertext field.
+
+	    }, {
+	        key: 'encrypt',
+	        value: function encrypt(message) {
+	            // Start by getting Key and Plaintext into byte arrays
+	            var keyBytes = hexStringToByteArray(this.keyBuf);
+	            var plaintextBytes = stringToByteArray(message);
+
+	            // Make a CryptoKey from the Key string
+	            this.crypto.subtle.importKey("raw", keyBytes, { name: "AES-CBC", length: 256 }, false, ["encrypt"]).then(function (key) {
+	                // Get a random IV, put in IV field, too
+	                this.initVector = this.crypto.getRandomValues(new Uint8Array(16));
+
+	                // Use the CryptoKey to encrypt the plaintext
+	                return this.crypto.subtle.encrypt({ name: "AES-CBC", iv: this.initVector }, key, plaintextBytes);
+	            }).then(function (ciphertextBuf) {
+	                // Encode ciphertext to base 64 and put in Ciphertext field
+	                ciphertextBytes = new Uint8Array(ciphertextBuf);
+	                this.cipherTextBase64 = byteArrayToBase64(ciphertextBytes);
+	                console.log("Encrypted");
+	            }).catch(function (err) {
+	                alert("Encryption error: " + err.message);
+	            });
+	        }
+
+	        // When the Decrypt button is pressed, create a CryptoKey
+	        // object from the hex encoded data in the Key input field,
+	        // decode the hex IV field value to a byte array, decode
+	        // the base 64 encoded ciphertext to a byte array, and then
+	        // use that IV and key to decrypt the ciphertext. Place the
+	        // resulting plaintext in the plaintext field.
+
+	    }, {
+	        key: 'decrypt',
+	        value: function decrypt(ciphertextBase64String) {
+	            // Start by getting Key, IV, and Ciphertext into byte arrays
+	            var keyField = this.keyBuf;
+	            var keyBytes = hexStringToByteArray(keyField);
+	            var ivHexString = this.initVector;
+	            var ivBytes = hexStringToByteArray(ivHexString);
+	            var ciphertextBytes = base64ToByteArray(ciphertextBase64String);
+
+	            // Make a CryptoKey from the Key string
+	            this.crypto.subtle.importKey("raw", keyBytes, { name: "AES-CBC", length: 256 }, false, ["decrypt"]).then(function (key) {
+	                // Use the CryptoKey and IV to decrypt the plaintext
+	                return this.crypto.subtle.decrypt({ name: "AES-CBC", iv: ivBytes }, key, ciphertextBytes);
+	            }).then(function (plaintextBuf) {
+	                // Convert array buffer to string and put in Plaintext field
+	                plaintextBytes = new Uint8Array(plaintextBuf);
+	                plaintextString = byteArrayToString(plaintextBytes);
+	                this.decryptedText = plaintextString;
+	                console.log("Decrypted");
+	            }).catch(function (err) {
+	                alert("Encryption error: " + err.message);
+	            });
+	        }
+
+	        // Various tools to convert string formats to and from
+	        // byte arrays (that is, Uint8Array), since the Web Crypto
+	        // API likes byte arrays, and web pages like strings.
+
+
+	    }, {
+	        key: 'byteArrayToHexString',
+	        value: function byteArrayToHexString(byteArray) {
+	            var hexString = '';
+	            var nextHexByte;
+	            for (var i = 0; i < byteArray.byteLength; i++) {
+	                nextHexByte = byteArray[i].toString(16); // Integer to base 16
+	                if (nextHexByte.length < 2) {
+	                    nextHexByte = "0" + nextHexByte; // Otherwise 10 becomes just a instead of 0a
+	                }
+	                hexString += nextHexByte;
+	            }
+	            return hexString;
+	        }
+	    }, {
+	        key: 'hexStringToByteArray',
+	        value: function hexStringToByteArray(hexString) {
+	            if (hexString.length % 2 !== 0) {
+	                throw "Must have an even number of hex digits to convert to bytes";
+	            }
+	            var numBytes = hexString.length / 2;
+	            var byteArray = new Uint8Array(numBytes);
+	            for (var i = 0; i < numBytes; i++) {
+	                byteArray[i] = parseInt(hexString.substr(i * 2, 2), 16);
+	            }
+	            return byteArray;
+	        }
+	    }, {
+	        key: 'byteArrayToBase64',
+	        value: function byteArrayToBase64(byteArray) {
+	            var binaryString = "";
+	            for (var i = 0; i < byteArray.byteLength; i++) {
+	                binaryString += String.fromCharCode(byteArray[i]);
+	            }
+	            var base64String = window.btoa(binaryString);
+	            return base64String;
+	        }
+	    }, {
+	        key: 'base64ToByteArray',
+	        value: function base64ToByteArray(base64String) {
+	            var binaryString = window.atob(base64String);
+	            var byteArray = new Uint8Array(binaryString.length);
+	            for (var i = 0; i < binaryString.length; i++) {
+	                byteArray[i] += binaryString.charCodeAt(i);
+	            }
+	            return byteArray;
+	        }
+	    }, {
+	        key: 'byteArrayToString',
+	        value: function byteArrayToString(byteArray) {
+	            if ("TextDecoder" in window) {
+	                decoder = new window.TextDecoder();
+	                return decoder.decode(byteArray);
+	            }
+
+	            // Otherwise, fall back to 7-bit ASCII only
+	            var result = "";
+	            for (var i = 0; i < byteArray.byteLength; i++) {
+	                result += String.fromCharCode(byteArray[i]);
+	            }
+	            return result;
+	        }
+	    }, {
+	        key: 'stringToByteArray',
+	        value: function stringToByteArray(s) {
+	            if ("TextEncoder" in window) {
+	                encoder = new window.TextEncoder();
+	                return encoder.encode(s);
+	            }
+
+	            // Otherwise, fall back to 7-bit ASCII only
+	            var result = new Uint8Array(s.length);
+	            for (var i = 0; i < s.length; i++) {
+	                result[i] = s.charCodeAt(i);
+	            }
+	            return result;
+	        }
+	    }]);
+
+	    return Cryptographics;
+	}();
+
+	exports.default = Cryptographics;
 
 /***/ }
 /******/ ]);

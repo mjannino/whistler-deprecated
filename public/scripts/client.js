@@ -1,10 +1,17 @@
 import CryptoSession from './crypto.js';
-
+import Cryptographics from './cryptographics.js';
 export default class App {
 
   constructor() {
     this.socket = io();
-    this.init();
+    this.transmitObject = {};
+    this.transmitObject.keyBuf = "";
+    this.transmitObject.initVector = [];
+    this.transmitObject.cipherText = "";
+    this.encoder = new Cryptographics();
+
+
+        this.init();
   }
 
 
@@ -12,11 +19,29 @@ export default class App {
 
     let self = this;
 
+    self.socket.on('connect', function(){
+      console.log("Connected to server");
+    });
+
     //when a new user joins, display a welcome message
     self.socket.on('newUser', function(user, roomID) {
         $('div#chatBox').append('<span class="important">New user ' + user + ' has joined room ' + roomID + '</span><br/>');
         $('div#joinForm').remove();
     });
+
+    // self.socket.on('sendAndEncrypt', function(msg){
+    //     self.encoder.generateKey();
+    //     self.encoder.encrypt(msg);
+    //     self.transmitObject.keyBuf = self.encoder.keyBuf;
+    //     self.transmitObject.initVector = self.encoder.initVector;
+    //     self.transmitObject.cipherTextBase64 = self.encoder.cipherText;
+    // });
+    //
+    // self.socker.on('recieveAndDecrypt', function(transmitObject){
+    //     self.encoder.keyBuf = transmitObject.keyBuf;
+    //     self.encoder.initVector = transmitObject.initVector;
+    //     self.encoder.decrypt(transmitObject.cipherText);
+    // });
 
     //when a new message is recieved from the server, display it with
     //the username that broacasted it
@@ -37,11 +62,6 @@ export default class App {
     self.socket.on('userDisconnected', function(username) {
         $('div#chatBox').append('<span class="important">User ' + username + ' has disconnected </span><br/>');
     });
-
-    //disconnect user because theres too many members in the room
-    self.socket.on('tooManyUsers', function(username){
-        $('div#chatBox').append('<p>Cannot connect to that room, too many users currently</p><p>Disconnecting...</p>')
-    })
 
     //submit the form to join a room
     $('button#join').click(function() {
