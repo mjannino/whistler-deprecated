@@ -22,7 +22,7 @@ function Room() {
     this.userList = [],
         this.roomID = null
 }
-//list of rooms
+//list of rooms change
 roomList = [];
 //list of everyone who connects to the server
 users = {};
